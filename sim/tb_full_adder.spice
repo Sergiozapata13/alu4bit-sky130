@@ -1,0 +1,84 @@
+* ============================================================
+* Testbench: Full Adder 28T - verificacion funcional + delay/potencia
+* ============================================================
+.include ../schematics/full_adder_28t.spice
+
+* --- Modelos Sky130 (ajustar ruta al PDK instalado con ciel/open_pdks) ---
+.lib "$::SKY130A_MODELS/sky130.lib.spice" tt
+
+.param VDD_VAL=1.8
+.param CLOAD=10f
+.param TSTEP=2n
+.param TRISE=100p
+
+VDD vdd 0 DC {VDD_VAL}
+VSS vss 0 DC 0
+
+* --- Estimulos: barrido de las 8 combinaciones A,B,Cin ---
+* Periodo por combinacion: 4ns -> total 32ns
+VA a vss PWL(
++ 0        0
++ {TRISE}  0
++ 4n       0      4n+{TRISE} 0
++ 8n       {VDD_VAL} 8n+{TRISE} {VDD_VAL}
++ 12n      {VDD_VAL}
++ 16n      0
++ 20n      {VDD_VAL}
++ 24n      0
++ 28n      {VDD_VAL}
++ )
+
+VB b vss PWL(
++ 0    0
++ 4n   {VDD_VAL}
++ 8n   0
++ 12n  {VDD_VAL}
++ 16n  0
++ 20n  {VDD_VAL}
++ 24n  {VDD_VAL}
++ 28n  0
++ )
+
+VCIN cin vss PWL(
++ 0    0
++ 4n   0
++ 8n   0
++ 12n  0
++ 16n  {VDD_VAL}
++ 20n  {VDD_VAL}
++ 24n  {VDD_VAL}
++ 28n  {VDD_VAL}
++ )
+
+* --- DUT ---
+Xfa a b cin sum cout vdd vss full_adder_28t
+
+* --- Cargas capacitivas en las salidas (misma Cload en todos los bloques
+*     de la ALU para que la comparacion entre arquitecturas sea valida) ---
+Csum sum vss {CLOAD}
+Ccout cout vss {CLOAD}
+
+* --- Analisis ---
+.tran {TSTEP} 32n
+
+* --- Mediciones de delay (cruce 50% VDD), estilo .meas estandar ---
+* Ejemplo: delay de A a Sum en la transicion de 4n (A:1->0, cambia Sum)
+.meas tran tpd_a_sum_r TRIG v(a) VAL={VDD_VAL/2} RISE=1 TARG v(sum) VAL={VDD_VAL/2} RISE=1
+.meas tran tpd_a_sum_f TRIG v(a) VAL={VDD_VAL/2} FALL=1 TARG v(sum) VAL={VDD_VAL/2} FALL=1
+.meas tran tpd_a_cout_r TRIG v(a) VAL={VDD_VAL/2} RISE=1 TARG v(cout) VAL={VDD_VAL/2} RISE=1
+.meas tran tpd_a_cout_f TRIG v(a) VAL={VDD_VAL/2} FALL=1 TARG v(cout) VAL={VDD_VAL/2} FALL=1
+
+* --- Potencia dinamica promedio: integral de i(VDD)*VDD / tiempo total ---
+.meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=32n
+
+* --- Potencia estatica: corriente de VDD con entradas fijas (usar un
+*     analisis .op aparte con A=B=Cin=0 y A=B=Cin=1 si se requiere el
+*     dato exacto de leakage; aqui se deja como nota metodologica) ---
+
+.control
+run
+plot v(a) v(b) v(cin) v(sum) v(cout)
+print tpd_a_sum_r tpd_a_sum_f tpd_a_cout_r tpd_a_cout_f avg_power
+.endc
+
+.end
