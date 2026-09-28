@@ -1,0 +1,148 @@
+* ============================================================
+* ALU de 4 bits - Top level - Sky130
+* ============================================================
+* Entradas: A[3:0], B[3:0], S[2:0] (selector de operacion)
+* Salida:   Result[7:0] (ancho fijo, ceros en bits altos cuando la
+*           operacion produce menos de 8 bits)
+* Banderas: Cout (suma), Bout (resta), GT, LT, EQ (comparacion)
+*
+*   S[2:0] | Operacion | Result[7:0]        | Banderas activas
+*   -------|-----------|---------------------|------------------
+*   000    | ADD       | {0000, Sum[3:0]}    | Cout
+*   001    | SUB       | {0000, Diff[3:0]}   | Bout
+*   010    | MUL       | P[7:0]              | (ninguna)
+*   011    | CMP       | 00000000            | GT, LT, EQ
+*   100    | AND       | {0000, Y[3:0]}      | (ninguna)
+*   101    | OR        | {0000, Y[3:0]}      | (ninguna)
+*   110    | XOR       | {0000, Y[3:0]}      | (ninguna)
+*   111    | reservado | 00000000            | (ninguna)
+*
+* La logica de seleccion se verifico en Python antes de escribir el
+* netlist: un arbol de 7 muxes 2-a-1 (mux8_sk130) por cada bit del
+* bus de 8 bits, donde S0 controla el primer nivel (4 muxes), S1 el
+* segundo nivel (2 muxes) y S2 el nivel final (1 mux) -- verificado
+* exhaustivamente contra las 8 combinaciones de S. Las banderas se
+* generan por separado con la misma logica de mux, seleccionando cual
+* banderas "reales" pasar segun la operacion activa (para las
+* operaciones donde una bandera no aplica, se fuerza a 0).
+* ============================================================
+
+* IMPORTANTE: se incluye SOLO el archivo consolidado de primitivas
+* (sin duplicados). NO incluir aqui multiplier_4x4.spice,
+* logic_ops_4bit.spice, full_subtractor.spice ni comparator_4bit.spice
+* por separado: cada uno de esos archivos tiene su propia cadena de
+* .include hacia full_adder_28t.spice/comparator_4bit.spice, y
+* combinarlos aqui produciria subcircuitos duplicados (ngspice no lo
+* permite, ni con contenido identico). Ver la nota en
+* alu_primitives.spice para el detalle completo.
+.include alu_primitives.spice
+
+* ------------------------------------------------------------
+* Mux de 2 entradas via transmission-gate: out = sel? in1 : in0
+* Misma tecnica ya verificada en xor2_sk130/xnor2_sk130 (TG controlado
+* por sel/sel', sin las dos redes compitiendo por el nodo de salida).
+* ------------------------------------------------------------
+.subckt mux2_sk130 in0 in1 sel out vdd vss
+Xp_selinv sel_n sel vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_selinv sel_n sel vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+
+* TG0: pasa in0 cuando sel=0
+* CORRECCION DE ORDEN DE TERMINALES (mismo hallazgo que en
+* xor2_sk130/xnor2_sk130): el CONTROL va en la posicion de GATE
+* (d g s b), el DATO en drain/source.
+Xn_tg0 out sel_n in0 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg0 out sel in0 vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+
+* TG1: pasa in1 cuando sel=1
+Xn_tg1 out sel in1 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg1 out sel_n in1 vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+.ends mux2_sk130
+
+* ------------------------------------------------------------
+* Mux de 8 entradas (arbol de 7 mux2, 3 niveles): out = in[S2 S1 S0]
+* S0 controla el primer nivel, S1 el segundo, S2 el ultimo.
+* ------------------------------------------------------------
+.subckt mux8_sk130 in0 in1 in2 in3 in4 in5 in6 in7 s2 s1 s0 out vdd vss
+* Nivel 1 (4 muxes, control S0)
+Xl1_0 in0 in1 s0 l1_0 vdd vss mux2_sk130
+Xl1_1 in2 in3 s0 l1_1 vdd vss mux2_sk130
+Xl1_2 in4 in5 s0 l1_2 vdd vss mux2_sk130
+Xl1_3 in6 in7 s0 l1_3 vdd vss mux2_sk130
+
+* Nivel 2 (2 muxes, control S1)
+Xl2_0 l1_0 l1_1 s1 l2_0 vdd vss mux2_sk130
+Xl2_1 l1_2 l1_3 s1 l2_1 vdd vss mux2_sk130
+
+* Nivel 3 (1 mux, control S2)
+Xl3 l2_0 l2_1 s2 out vdd vss mux2_sk130
+.ends mux8_sk130
+
+* ------------------------------------------------------------
+* ALU top-level
+* ------------------------------------------------------------
+.subckt alu_4bit A3 A2 A1 A0 B3 B2 B1 B0 S2 S1 S0
++ R7 R6 R5 R4 R3 R2 R1 R0 Cout Bout GT LT EQ vdd vss
+
+* --- Bloque ADD (full adder de 4 bits, ripple-carry con el full
+*     adder de 1 bit ya verificado) ---
+Xfa0 A0 B0 vss           sum0 c0 vdd vss full_adder_28t
+Xfa1 A1 B1 c0            sum1 c1 vdd vss full_adder_28t
+Xfa2 A2 B2 c1            sum2 c2 vdd vss full_adder_28t
+Xfa3 A3 B3 c2            sum3 add_cout vdd vss full_adder_28t
+
+* --- Bloque SUB (full subtractor de 4 bits, ripple-borrow) ---
+* IMPORTANTE: ngspice NO distingue mayusculas/minusculas en nombres de
+* nodo. Una version anterior usaba "b0","b1","b2" para la cadena
+* interna de acarreo/prestamo, lo cual COLISIONABA silenciosamente con
+* los puertos de entrada B0,B1,B2 de esta misma ALU (serian el MISMO
+* nodo para ngspice) -- esto corrompia la resta (se detecto porque
+* Diff daba 0000 en vez de 0011 para A=6,B=3 en la integracion
+* completa, aunque el full_subtractor aislado daba el resultado
+* correcto). Se renombran los nodos internos a "bw0","bw1","bw2" (de
+* "borrow") para evitar cualquier colision con los puertos A[3:0]/
+* B[3:0]/S[2:0]/R[7:0]/Cout/Bout/GT/LT/EQ.
+Xfs0 A0 B0 vss           diff0 bw0 vdd vss full_subtractor
+Xfs1 A1 B1 bw0           diff1 bw1 vdd vss full_subtractor
+Xfs2 A2 B2 bw1           diff2 bw2 vdd vss full_subtractor
+Xfs3 A3 B3 bw2           diff3 sub_bout vdd vss full_subtractor
+
+* --- Bloque MUL (multiplicador 4x4 ya verificado) ---
+Xmul A3 A2 A1 A0 B3 B2 B1 B0 mp7 mp6 mp5 mp4 mp3 mp2 mp1 mp0 vdd vss multiplier_4x4
+
+* --- Bloque CMP (comparador 4 bits ya verificado) ---
+Xcmp A3 A2 A1 A0 B3 B2 B1 B0 cmp_gt cmp_lt cmp_eq vdd vss comparator_4bit
+
+* --- Bloques logicos AND/OR/XOR de 4 bits ---
+Xand A3 A2 A1 A0 B3 B2 B1 B0 and3 and2 and1 and0 vdd vss and4_sk130
+Xor  A3 A2 A1 A0 B3 B2 B1 B0 or3  or2  or1  or0  vdd vss or4_sk130
+Xxor A3 A2 A1 A0 B3 B2 B1 B0 xor3 xor2 xor1 xor0 vdd vss xor4_sk130
+
+* --- Mux de seleccion de Result[7:0], una instancia mux8 por bit ---
+* R7 (bit mas alto): 0 en todas las operaciones excepto MUL
+Xmux_r7 vss vss mp7 vss vss vss vss vss S2 S1 S0 R7 vdd vss mux8_sk130
+* R6
+Xmux_r6 vss vss mp6 vss vss vss vss vss S2 S1 S0 R6 vdd vss mux8_sk130
+* R5
+Xmux_r5 vss vss mp5 vss vss vss vss vss S2 S1 S0 R5 vdd vss mux8_sk130
+* R4
+Xmux_r4 vss vss mp4 vss vss vss vss vss S2 S1 S0 R4 vdd vss mux8_sk130
+* R3: ADD=sum3, SUB=diff3, MUL=mp3, CMP=0, AND=and3, OR=or3, XOR=xor3, res=0
+Xmux_r3 sum3 diff3 mp3 vss and3 or3 xor3 vss S2 S1 S0 R3 vdd vss mux8_sk130
+* R2
+Xmux_r2 sum2 diff2 mp2 vss and2 or2 xor2 vss S2 S1 S0 R2 vdd vss mux8_sk130
+* R1
+Xmux_r1 sum1 diff1 mp1 vss and1 or1 xor1 vss S2 S1 S0 R1 vdd vss mux8_sk130
+* R0
+Xmux_r0 sum0 diff0 mp0 vss and0 or0 xor0 vss S2 S1 S0 R0 vdd vss mux8_sk130
+
+* --- Banderas ---
+* Cout: solo valido durante ADD (S=000), 0 en el resto
+Xmux_cout add_cout vss vss vss vss vss vss vss S2 S1 S0 Cout vdd vss mux8_sk130
+* Bout: solo valido durante SUB (S=001)
+Xmux_bout vss sub_bout vss vss vss vss vss vss S2 S1 S0 Bout vdd vss mux8_sk130
+* GT/LT/EQ: solo validas durante CMP (S=011)
+Xmux_gt vss vss vss cmp_gt vss vss vss vss S2 S1 S0 GT vdd vss mux8_sk130
+Xmux_lt vss vss vss cmp_lt vss vss vss vss S2 S1 S0 LT vdd vss mux8_sk130
+Xmux_eq vss vss vss cmp_eq vss vss vss vss S2 S1 S0 EQ vdd vss mux8_sk130
+
+.ends alu_4bit

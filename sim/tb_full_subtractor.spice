@@ -108,6 +108,7 @@ Cbout bout vss {CLOAD}
 .control
 run
 plot v(a) v(b) v(bin) v(diff) v(bout)
+hardcopy ../docs/waveforms/full_subtractor.svg v(a) v(b) v(bin) v(diff) v(bout)
 print tpd_a_diff_r tpd_a_diff_f avg_power
 .endc
 

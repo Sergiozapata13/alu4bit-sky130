@@ -123,6 +123,19 @@ Cp7 p7 vss {CLOAD}
 
 .control
 run
+* NOTA: ngspice-42 da "PPerror: syntax error in line segment" si se le
+* pasan mas de 8 vectores en una sola linea a 'plot' o 'hardcopy' (limite
+* de ancho de linea heredado del backend PostScript). Un 'plot' con mas
+* de 8 senales deja el graficador en estado invalido y hace fallar el
+* 'hardcopy' siguiente, incluso si ese hardcopy tiene pocas senales --
+* por eso se dividen TANTO los plot como los hardcopy: entradas A/B, y
+* P[7:0] en dos mitades.
+plot v(a3) v(a2) v(a1) v(a0) v(b3) v(b2) v(b1) v(b0)
+hardcopy ../docs/waveforms/multiplier_4x4_inputs.svg v(a3) v(a2) v(a1) v(a0) v(b3) v(b2) v(b1) v(b0)
+plot v(p7) v(p6) v(p5) v(p4)
+hardcopy ../docs/waveforms/multiplier_4x4_p_high.svg v(p7) v(p6) v(p5) v(p4)
+plot v(p3) v(p2) v(p1) v(p0)
+hardcopy ../docs/waveforms/multiplier_4x4_p_low.svg v(p3) v(p2) v(p1) v(p0)
 .endc
 
 .end

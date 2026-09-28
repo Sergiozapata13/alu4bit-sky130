@@ -1,0 +1,635 @@
+%!PS-Adobe-3.0 EPSF-3.0
+%%Creator: ngspice
+%%BoundingBox: 22 22 594 612
+/Re-encode { % inFont outFont encoding | -
+   /MyEncoding exch def
+      exch findfont
+      dup length dict
+      begin
+         {def} forall
+         /Encoding MyEncoding def
+         currentdict
+      end
+      definefont
+} def
+/Helvetica /HelveticaLatin1 ISOLatin1Encoding Re-encode
+1 1 scale
+/HelveticaLatin1 findfont 10 scalefont setfont
+
+[] 0 setdash
+[1 2] 0 setdash
+[] 0 setdash
+243 66 moveto
+0 rotate
+(time) show
+-0 rotate
+[1 2] 0 setdash
+[] 0 setdash
+54 596 moveto
+0 rotate
+(tran1: * ============================================================) show
+-0 rotate
+[1 2] 0 setdash
+[] 0 setdash
+newpath
+78 104 moveto
+78 545 lineto
+1.000000 setlinewidth
+stroke
+[1 2] 0 setdash
+[] 0 setdash
+69 87 moveto
+0 rotate
+(0.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+140 104 moveto
+140 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+128 87 moveto
+0 rotate
+(20.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+202 104 moveto
+202 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+190 87 moveto
+0 rotate
+(40.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+264 104 moveto
+264 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+252 87 moveto
+0 rotate
+(60.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+326 104 moveto
+326 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+314 87 moveto
+0 rotate
+(80.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+388 104 moveto
+388 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+373 87 moveto
+0 rotate
+(100.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+450 104 moveto
+450 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+435 87 moveto
+0 rotate
+(120.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+512 104 moveto
+512 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+497 87 moveto
+0 rotate
+(140.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+574 104 moveto
+574 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+559 87 moveto
+0 rotate
+(160.0) show
+-0 rotate
+[1 2] 0 setdash
+[] 0 setdash
+382 66 moveto
+0 rotate
+(ns) show
+-0 rotate
+[1 2] 0 setdash
+[] 0 setdash
+newpath
+78 104 moveto
+574 104 lineto
+1.000000 setlinewidth
+stroke
+[1 2] 0 setdash
+[] 0 setdash
+58 101 moveto
+0 rotate
+(0.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 153 moveto
+574 153 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 150 moveto
+0 rotate
+(0.2) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 202 moveto
+574 202 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 199 moveto
+0 rotate
+(0.4) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 251 moveto
+574 251 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 248 moveto
+0 rotate
+(0.6) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 300 moveto
+574 300 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 297 moveto
+0 rotate
+(0.8) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 349 moveto
+574 349 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 346 moveto
+0 rotate
+(1.0) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 398 moveto
+574 398 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 395 moveto
+0 rotate
+(1.2) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 447 moveto
+574 447 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 444 moveto
+0 rotate
+(1.4) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 496 moveto
+574 496 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 493 moveto
+0 rotate
+(1.6) show
+-0 rotate
+[1 2] 0 setdash
+newpath
+78 545 moveto
+574 545 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+58 542 moveto
+0 rotate
+(1.8) show
+-0 rotate
+[1 2] 0 setdash
+[] 0 setdash
+54 582 moveto
+0 rotate
+(V) show
+-0 rotate
+[1 2] 0 setdash
+[7 7] 0 setdash
+newpath
+296 586 moveto
+320 586 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+326 582 moveto
+0 rotate
+(v(a3)) show
+-0 rotate
+[7 7] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+202 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+202 104 moveto
+202 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+202 104 moveto
+264 104 lineto
+1.000000 setlinewidth
+264 545 lineto
+1.000000 setlinewidth
+326 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+326 104 moveto
+326 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+326 104 moveto
+388 104 lineto
+1.000000 setlinewidth
+388 545 lineto
+1.000000 setlinewidth
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+574 104 lineto
+1.000000 setlinewidth
+stroke
+[3 3] 0 setdash
+newpath
+78 586 moveto
+102 586 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+108 582 moveto
+0 rotate
+(v(a2)) show
+-0 rotate
+[3 3] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+202 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+202 104 moveto
+202 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+202 104 moveto
+264 104 lineto
+1.000000 setlinewidth
+264 545 lineto
+1.000000 setlinewidth
+388 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+388 104 moveto
+388 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+388 104 moveto
+450 104 lineto
+1.000000 setlinewidth
+450 545 lineto
+1.000000 setlinewidth
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+574 104 lineto
+1.000000 setlinewidth
+stroke
+[7 2 2 2] 0 setdash
+newpath
+296 572 moveto
+320 572 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+326 568 moveto
+0 rotate
+(v(a1)) show
+-0 rotate
+[7 2 2 2] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+202 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+202 104 moveto
+202 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+202 104 moveto
+264 104 lineto
+1.000000 setlinewidth
+264 545 lineto
+1.000000 setlinewidth
+388 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+388 104 moveto
+388 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+388 104 moveto
+512 104 lineto
+1.000000 setlinewidth
+512 545 lineto
+1.000000 setlinewidth
+574 545 lineto
+1.000000 setlinewidth
+stroke
+[3 2 1 2] 0 setdash
+newpath
+78 572 moveto
+102 572 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+108 568 moveto
+0 rotate
+(v(a0)) show
+-0 rotate
+[3 2 1 2] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+450 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+450 104 moveto
+450 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+450 104 moveto
+512 104 lineto
+1.000000 setlinewidth
+512 545 lineto
+1.000000 setlinewidth
+574 545 lineto
+1.000000 setlinewidth
+stroke
+[8 3 2 3] 0 setdash
+newpath
+296 558 moveto
+320 558 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+326 554 moveto
+0 rotate
+(v(b3)) show
+-0 rotate
+[8 3 2 3] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+264 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+264 104 moveto
+264 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+264 104 moveto
+450 104 lineto
+1.000000 setlinewidth
+450 545 lineto
+1.000000 setlinewidth
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+574 104 lineto
+1.000000 setlinewidth
+stroke
+[14 2] 0 setdash
+newpath
+78 558 moveto
+102 558 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+108 554 moveto
+0 rotate
+(v(b2)) show
+-0 rotate
+[14 2] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+264 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+264 104 moveto
+264 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+264 104 moveto
+326 104 lineto
+1.000000 setlinewidth
+326 545 lineto
+1.000000 setlinewidth
+450 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+450 104 moveto
+450 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+450 104 moveto
+512 104 lineto
+1.000000 setlinewidth
+512 545 lineto
+1.000000 setlinewidth
+574 545 lineto
+1.000000 setlinewidth
+stroke
+[3 5 1 5] 0 setdash
+newpath
+296 544 moveto
+320 544 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+326 540 moveto
+0 rotate
+(v(b1)) show
+-0 rotate
+[3 5 1 5] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+264 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+264 104 moveto
+264 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+264 104 moveto
+326 104 lineto
+1.000000 setlinewidth
+326 545 lineto
+1.000000 setlinewidth
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+512 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+512 104 moveto
+574 104 lineto
+1.000000 setlinewidth
+stroke
+[7 7] 0 setdash
+newpath
+78 544 moveto
+102 544 lineto
+1.000000 setlinewidth
+stroke
+[] 0 setdash
+108 540 moveto
+0 rotate
+(v(b0)) show
+-0 rotate
+[7 7] 0 setdash
+newpath
+78 104 moveto
+140 104 lineto
+1.000000 setlinewidth
+140 545 lineto
+1.000000 setlinewidth
+388 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+388 104 moveto
+388 545 lineto
+1.000000 setlinewidth
+stroke
+newpath
+388 104 moveto
+450 104 lineto
+1.000000 setlinewidth
+450 545 lineto
+1.000000 setlinewidth
+574 545 lineto
+1.000000 setlinewidth
+stroke
+showpage
+%%EOF

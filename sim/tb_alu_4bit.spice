@@ -1,0 +1,244 @@
+* ============================================================
+* Testbench: ALU de 4 bits completa (top-level) contra el PDK real
+* de Sky130. Ejercita las 8 operaciones (S=000..111) mas dos casos
+* extra de acarreo/prestamo (Cout=1 en ADD, Bout=1 en SUB), 12 slots
+* de 16ns cada uno con transiciones de 0.1ns (PWL generado por
+* Python, no a mano, siguiendo la convencion ya establecida en el
+* proyecto para evitar errores de transcripcion).
+*
+* Secuencia de pruebas (indice: S, A, B -> resultado esperado):
+*   0  ADD      000  A=6  B=3  -> Result=00001001 Cout=0
+*   1  SUB      001  A=6  B=3  -> Result=00000011 Bout=0
+*   2  MUL      010  A=6  B=3  -> Result=00010010
+*   3  CMP(GT)  011  A=6  B=3  -> GT=1 LT=0 EQ=0
+*   4  CMP(EQ)  011  A=3  B=3  -> GT=0 LT=0 EQ=1
+*   5  CMP(LT)  011  A=2  B=9  -> GT=0 LT=1 EQ=0
+*   6  AND      100  A=12 B=10 -> Result=00001000
+*   7  OR       101  A=12 B=10 -> Result=00001110
+*   8  XOR      110  A=12 B=10 -> Result=00000110
+*   9  RESERVADO 111 A=6  B=3  -> Result=00000000, banderas=0
+*   10 ADD_OVF  000  A=15 B=2  -> Result=00000001 Cout=1 (acarreo)
+*   11 SUB_UDF  001  A=3  B=6  -> Result=00001101 Bout=1 (prestamo)
+*
+* Verificado primero end-to-end con modelos genericos de nivel 1
+* (12/12 slots correctos, incluyendo los casos de Cout/Bout) antes
+* de correr contra el PDK real -- ver historial del proyecto.
+* ============================================================
+
+.include ../schematics/alu_primitives.spice
+.include ../schematics/alu_4bit_top.spice
+
+.lib "/home/segio/.ciel/ciel/sky130/versions/1689ac3f2dc763876eaf967227c7dfe831b031ae/sky130A/libs.tech/ngspice/sky130.lib.spice" tt
+
+.param VDD_VAL=1.8
+.param CLOAD=10f
+
+VDD vdd 0 DC {VDD_VAL}
+VSS vss 0 DC 0
+
+VA3 a3 vss PWL(0.00n 0.0000  15.90n 0.0000  16.00n 0.0000  31.90n 0.0000  32.00n 0.0000  47.90n 0.0000  48.00n 0.0000  63.90n 0.0000  64.00n 0.0000  79.90n 0.0000  80.00n 0.0000  95.90n 0.0000  96.00n 1.8000  111.90n 1.8000  112.00n 1.8000  127.90n 1.8000  128.00n 1.8000  143.90n 1.8000  144.00n 0.0000  159.90n 0.0000  160.00n 1.8000  175.90n 1.8000  176.00n 0.0000  191.90n 0.0000)
+VA2 a2 vss PWL(0.00n 1.8000  15.90n 1.8000  16.00n 1.8000  31.90n 1.8000  32.00n 1.8000  47.90n 1.8000  48.00n 1.8000  63.90n 1.8000  64.00n 0.0000  79.90n 0.0000  80.00n 0.0000  95.90n 0.0000  96.00n 1.8000  111.90n 1.8000  112.00n 1.8000  127.90n 1.8000  128.00n 1.8000  143.90n 1.8000  144.00n 1.8000  159.90n 1.8000  160.00n 1.8000  175.90n 1.8000  176.00n 0.0000  191.90n 0.0000)
+VA1 a1 vss PWL(0.00n 1.8000  15.90n 1.8000  16.00n 1.8000  31.90n 1.8000  32.00n 1.8000  47.90n 1.8000  48.00n 1.8000  63.90n 1.8000  64.00n 1.8000  79.90n 1.8000  80.00n 1.8000  95.90n 1.8000  96.00n 0.0000  111.90n 0.0000  112.00n 0.0000  127.90n 0.0000  128.00n 0.0000  143.90n 0.0000  144.00n 1.8000  159.90n 1.8000  160.00n 1.8000  175.90n 1.8000  176.00n 1.8000  191.90n 1.8000)
+VA0 a0 vss PWL(0.00n 0.0000  15.90n 0.0000  16.00n 0.0000  31.90n 0.0000  32.00n 0.0000  47.90n 0.0000  48.00n 0.0000  63.90n 0.0000  64.00n 1.8000  79.90n 1.8000  80.00n 0.0000  95.90n 0.0000  96.00n 0.0000  111.90n 0.0000  112.00n 0.0000  127.90n 0.0000  128.00n 0.0000  143.90n 0.0000  144.00n 0.0000  159.90n 0.0000  160.00n 1.8000  175.90n 1.8000  176.00n 1.8000  191.90n 1.8000)
+VB3 b3 vss PWL(0.00n 0.0000  15.90n 0.0000  16.00n 0.0000  31.90n 0.0000  32.00n 0.0000  47.90n 0.0000  48.00n 0.0000  63.90n 0.0000  64.00n 0.0000  79.90n 0.0000  80.00n 1.8000  95.90n 1.8000  96.00n 1.8000  111.90n 1.8000  112.00n 1.8000  127.90n 1.8000  128.00n 1.8000  143.90n 1.8000  144.00n 0.0000  159.90n 0.0000  160.00n 0.0000  175.90n 0.0000  176.00n 0.0000  191.90n 0.0000)
+VB2 b2 vss PWL(0.00n 0.0000  15.90n 0.0000  16.00n 0.0000  31.90n 0.0000  32.00n 0.0000  47.90n 0.0000  48.00n 0.0000  63.90n 0.0000  64.00n 0.0000  79.90n 0.0000  80.00n 0.0000  95.90n 0.0000  96.00n 0.0000  111.90n 0.0000  112.00n 0.0000  127.90n 0.0000  128.00n 0.0000  143.90n 0.0000  144.00n 0.0000  159.90n 0.0000  160.00n 0.0000  175.90n 0.0000  176.00n 1.8000  191.90n 1.8000)
+VB1 b1 vss PWL(0.00n 1.8000  15.90n 1.8000  16.00n 1.8000  31.90n 1.8000  32.00n 1.8000  47.90n 1.8000  48.00n 1.8000  63.90n 1.8000  64.00n 1.8000  79.90n 1.8000  80.00n 0.0000  95.90n 0.0000  96.00n 1.8000  111.90n 1.8000  112.00n 1.8000  127.90n 1.8000  128.00n 1.8000  143.90n 1.8000  144.00n 1.8000  159.90n 1.8000  160.00n 1.8000  175.90n 1.8000  176.00n 1.8000  191.90n 1.8000)
+VB0 b0 vss PWL(0.00n 1.8000  15.90n 1.8000  16.00n 1.8000  31.90n 1.8000  32.00n 1.8000  47.90n 1.8000  48.00n 1.8000  63.90n 1.8000  64.00n 1.8000  79.90n 1.8000  80.00n 1.8000  95.90n 1.8000  96.00n 0.0000  111.90n 0.0000  112.00n 0.0000  127.90n 0.0000  128.00n 0.0000  143.90n 0.0000  144.00n 1.8000  159.90n 1.8000  160.00n 0.0000  175.90n 0.0000  176.00n 0.0000  191.90n 0.0000)
+VS2 s2 vss PWL(0.00n 0.0000  15.90n 0.0000  16.00n 0.0000  31.90n 0.0000  32.00n 0.0000  47.90n 0.0000  48.00n 0.0000  63.90n 0.0000  64.00n 0.0000  79.90n 0.0000  80.00n 0.0000  95.90n 0.0000  96.00n 1.8000  111.90n 1.8000  112.00n 1.8000  127.90n 1.8000  128.00n 1.8000  143.90n 1.8000  144.00n 1.8000  159.90n 1.8000  160.00n 0.0000  175.90n 0.0000  176.00n 0.0000  191.90n 0.0000)
+VS1 s1 vss PWL(0.00n 0.0000  15.90n 0.0000  16.00n 0.0000  31.90n 0.0000  32.00n 1.8000  47.90n 1.8000  48.00n 1.8000  63.90n 1.8000  64.00n 1.8000  79.90n 1.8000  80.00n 1.8000  95.90n 1.8000  96.00n 0.0000  111.90n 0.0000  112.00n 0.0000  127.90n 0.0000  128.00n 1.8000  143.90n 1.8000  144.00n 1.8000  159.90n 1.8000  160.00n 0.0000  175.90n 0.0000  176.00n 0.0000  191.90n 0.0000)
+VS0 s0 vss PWL(0.00n 0.0000  15.90n 0.0000  16.00n 1.8000  31.90n 1.8000  32.00n 0.0000  47.90n 0.0000  48.00n 1.8000  63.90n 1.8000  64.00n 1.8000  79.90n 1.8000  80.00n 1.8000  95.90n 1.8000  96.00n 0.0000  111.90n 0.0000  112.00n 1.8000  127.90n 1.8000  128.00n 0.0000  143.90n 0.0000  144.00n 1.8000  159.90n 1.8000  160.00n 0.0000  175.90n 0.0000  176.00n 1.8000  191.90n 1.8000)
+
+Xalu a3 a2 a1 a0 b3 b2 b1 b0 s2 s1 s0 r7 r6 r5 r4 r3 r2 r1 r0 cout bout gt lt eq vdd vss alu_4bit
+
+Cr7 r7 vss {CLOAD}
+Cr6 r6 vss {CLOAD}
+Cr5 r5 vss {CLOAD}
+Cr4 r4 vss {CLOAD}
+Cr3 r3 vss {CLOAD}
+Cr2 r2 vss {CLOAD}
+Cr1 r1 vss {CLOAD}
+Cr0 r0 vss {CLOAD}
+Ccout cout vss {CLOAD}
+Cbout bout vss {CLOAD}
+Cgt gt vss {CLOAD}
+Clt lt vss {CLOAD}
+Ceq eq vss {CLOAD}
+
+.tran 0.05n 192n
+
+.meas tran r7_0_ADD FIND v(r7) AT=14.0n
+.meas tran r6_0_ADD FIND v(r6) AT=14.0n
+.meas tran r5_0_ADD FIND v(r5) AT=14.0n
+.meas tran r4_0_ADD FIND v(r4) AT=14.0n
+.meas tran r3_0_ADD FIND v(r3) AT=14.0n
+.meas tran r2_0_ADD FIND v(r2) AT=14.0n
+.meas tran r1_0_ADD FIND v(r1) AT=14.0n
+.meas tran r0_0_ADD FIND v(r0) AT=14.0n
+.meas tran cout_0_ADD FIND v(cout) AT=14.0n
+.meas tran bout_0_ADD FIND v(bout) AT=14.0n
+.meas tran gt_0_ADD FIND v(gt) AT=14.0n
+.meas tran lt_0_ADD FIND v(lt) AT=14.0n
+.meas tran eq_0_ADD FIND v(eq) AT=14.0n
+.meas tran r7_1_SUB FIND v(r7) AT=30.0n
+.meas tran r6_1_SUB FIND v(r6) AT=30.0n
+.meas tran r5_1_SUB FIND v(r5) AT=30.0n
+.meas tran r4_1_SUB FIND v(r4) AT=30.0n
+.meas tran r3_1_SUB FIND v(r3) AT=30.0n
+.meas tran r2_1_SUB FIND v(r2) AT=30.0n
+.meas tran r1_1_SUB FIND v(r1) AT=30.0n
+.meas tran r0_1_SUB FIND v(r0) AT=30.0n
+.meas tran cout_1_SUB FIND v(cout) AT=30.0n
+.meas tran bout_1_SUB FIND v(bout) AT=30.0n
+.meas tran gt_1_SUB FIND v(gt) AT=30.0n
+.meas tran lt_1_SUB FIND v(lt) AT=30.0n
+.meas tran eq_1_SUB FIND v(eq) AT=30.0n
+.meas tran r7_2_MUL FIND v(r7) AT=46.0n
+.meas tran r6_2_MUL FIND v(r6) AT=46.0n
+.meas tran r5_2_MUL FIND v(r5) AT=46.0n
+.meas tran r4_2_MUL FIND v(r4) AT=46.0n
+.meas tran r3_2_MUL FIND v(r3) AT=46.0n
+.meas tran r2_2_MUL FIND v(r2) AT=46.0n
+.meas tran r1_2_MUL FIND v(r1) AT=46.0n
+.meas tran r0_2_MUL FIND v(r0) AT=46.0n
+.meas tran cout_2_MUL FIND v(cout) AT=46.0n
+.meas tran bout_2_MUL FIND v(bout) AT=46.0n
+.meas tran gt_2_MUL FIND v(gt) AT=46.0n
+.meas tran lt_2_MUL FIND v(lt) AT=46.0n
+.meas tran eq_2_MUL FIND v(eq) AT=46.0n
+.meas tran r7_3_CMP_GT FIND v(r7) AT=62.0n
+.meas tran r6_3_CMP_GT FIND v(r6) AT=62.0n
+.meas tran r5_3_CMP_GT FIND v(r5) AT=62.0n
+.meas tran r4_3_CMP_GT FIND v(r4) AT=62.0n
+.meas tran r3_3_CMP_GT FIND v(r3) AT=62.0n
+.meas tran r2_3_CMP_GT FIND v(r2) AT=62.0n
+.meas tran r1_3_CMP_GT FIND v(r1) AT=62.0n
+.meas tran r0_3_CMP_GT FIND v(r0) AT=62.0n
+.meas tran cout_3_CMP_GT FIND v(cout) AT=62.0n
+.meas tran bout_3_CMP_GT FIND v(bout) AT=62.0n
+.meas tran gt_3_CMP_GT FIND v(gt) AT=62.0n
+.meas tran lt_3_CMP_GT FIND v(lt) AT=62.0n
+.meas tran eq_3_CMP_GT FIND v(eq) AT=62.0n
+.meas tran r7_4_CMP_EQ FIND v(r7) AT=78.0n
+.meas tran r6_4_CMP_EQ FIND v(r6) AT=78.0n
+.meas tran r5_4_CMP_EQ FIND v(r5) AT=78.0n
+.meas tran r4_4_CMP_EQ FIND v(r4) AT=78.0n
+.meas tran r3_4_CMP_EQ FIND v(r3) AT=78.0n
+.meas tran r2_4_CMP_EQ FIND v(r2) AT=78.0n
+.meas tran r1_4_CMP_EQ FIND v(r1) AT=78.0n
+.meas tran r0_4_CMP_EQ FIND v(r0) AT=78.0n
+.meas tran cout_4_CMP_EQ FIND v(cout) AT=78.0n
+.meas tran bout_4_CMP_EQ FIND v(bout) AT=78.0n
+.meas tran gt_4_CMP_EQ FIND v(gt) AT=78.0n
+.meas tran lt_4_CMP_EQ FIND v(lt) AT=78.0n
+.meas tran eq_4_CMP_EQ FIND v(eq) AT=78.0n
+.meas tran r7_5_CMP_LT FIND v(r7) AT=94.0n
+.meas tran r6_5_CMP_LT FIND v(r6) AT=94.0n
+.meas tran r5_5_CMP_LT FIND v(r5) AT=94.0n
+.meas tran r4_5_CMP_LT FIND v(r4) AT=94.0n
+.meas tran r3_5_CMP_LT FIND v(r3) AT=94.0n
+.meas tran r2_5_CMP_LT FIND v(r2) AT=94.0n
+.meas tran r1_5_CMP_LT FIND v(r1) AT=94.0n
+.meas tran r0_5_CMP_LT FIND v(r0) AT=94.0n
+.meas tran cout_5_CMP_LT FIND v(cout) AT=94.0n
+.meas tran bout_5_CMP_LT FIND v(bout) AT=94.0n
+.meas tran gt_5_CMP_LT FIND v(gt) AT=94.0n
+.meas tran lt_5_CMP_LT FIND v(lt) AT=94.0n
+.meas tran eq_5_CMP_LT FIND v(eq) AT=94.0n
+.meas tran r7_6_AND FIND v(r7) AT=110.0n
+.meas tran r6_6_AND FIND v(r6) AT=110.0n
+.meas tran r5_6_AND FIND v(r5) AT=110.0n
+.meas tran r4_6_AND FIND v(r4) AT=110.0n
+.meas tran r3_6_AND FIND v(r3) AT=110.0n
+.meas tran r2_6_AND FIND v(r2) AT=110.0n
+.meas tran r1_6_AND FIND v(r1) AT=110.0n
+.meas tran r0_6_AND FIND v(r0) AT=110.0n
+.meas tran cout_6_AND FIND v(cout) AT=110.0n
+.meas tran bout_6_AND FIND v(bout) AT=110.0n
+.meas tran gt_6_AND FIND v(gt) AT=110.0n
+.meas tran lt_6_AND FIND v(lt) AT=110.0n
+.meas tran eq_6_AND FIND v(eq) AT=110.0n
+.meas tran r7_7_OR FIND v(r7) AT=126.0n
+.meas tran r6_7_OR FIND v(r6) AT=126.0n
+.meas tran r5_7_OR FIND v(r5) AT=126.0n
+.meas tran r4_7_OR FIND v(r4) AT=126.0n
+.meas tran r3_7_OR FIND v(r3) AT=126.0n
+.meas tran r2_7_OR FIND v(r2) AT=126.0n
+.meas tran r1_7_OR FIND v(r1) AT=126.0n
+.meas tran r0_7_OR FIND v(r0) AT=126.0n
+.meas tran cout_7_OR FIND v(cout) AT=126.0n
+.meas tran bout_7_OR FIND v(bout) AT=126.0n
+.meas tran gt_7_OR FIND v(gt) AT=126.0n
+.meas tran lt_7_OR FIND v(lt) AT=126.0n
+.meas tran eq_7_OR FIND v(eq) AT=126.0n
+.meas tran r7_8_XOR FIND v(r7) AT=142.0n
+.meas tran r6_8_XOR FIND v(r6) AT=142.0n
+.meas tran r5_8_XOR FIND v(r5) AT=142.0n
+.meas tran r4_8_XOR FIND v(r4) AT=142.0n
+.meas tran r3_8_XOR FIND v(r3) AT=142.0n
+.meas tran r2_8_XOR FIND v(r2) AT=142.0n
+.meas tran r1_8_XOR FIND v(r1) AT=142.0n
+.meas tran r0_8_XOR FIND v(r0) AT=142.0n
+.meas tran cout_8_XOR FIND v(cout) AT=142.0n
+.meas tran bout_8_XOR FIND v(bout) AT=142.0n
+.meas tran gt_8_XOR FIND v(gt) AT=142.0n
+.meas tran lt_8_XOR FIND v(lt) AT=142.0n
+.meas tran eq_8_XOR FIND v(eq) AT=142.0n
+.meas tran r7_9_RESERVED FIND v(r7) AT=158.0n
+.meas tran r6_9_RESERVED FIND v(r6) AT=158.0n
+.meas tran r5_9_RESERVED FIND v(r5) AT=158.0n
+.meas tran r4_9_RESERVED FIND v(r4) AT=158.0n
+.meas tran r3_9_RESERVED FIND v(r3) AT=158.0n
+.meas tran r2_9_RESERVED FIND v(r2) AT=158.0n
+.meas tran r1_9_RESERVED FIND v(r1) AT=158.0n
+.meas tran r0_9_RESERVED FIND v(r0) AT=158.0n
+.meas tran cout_9_RESERVED FIND v(cout) AT=158.0n
+.meas tran bout_9_RESERVED FIND v(bout) AT=158.0n
+.meas tran gt_9_RESERVED FIND v(gt) AT=158.0n
+.meas tran lt_9_RESERVED FIND v(lt) AT=158.0n
+.meas tran eq_9_RESERVED FIND v(eq) AT=158.0n
+.meas tran r7_10_ADD_OVF FIND v(r7) AT=174.0n
+.meas tran r6_10_ADD_OVF FIND v(r6) AT=174.0n
+.meas tran r5_10_ADD_OVF FIND v(r5) AT=174.0n
+.meas tran r4_10_ADD_OVF FIND v(r4) AT=174.0n
+.meas tran r3_10_ADD_OVF FIND v(r3) AT=174.0n
+.meas tran r2_10_ADD_OVF FIND v(r2) AT=174.0n
+.meas tran r1_10_ADD_OVF FIND v(r1) AT=174.0n
+.meas tran r0_10_ADD_OVF FIND v(r0) AT=174.0n
+.meas tran cout_10_ADD_OVF FIND v(cout) AT=174.0n
+.meas tran bout_10_ADD_OVF FIND v(bout) AT=174.0n
+.meas tran gt_10_ADD_OVF FIND v(gt) AT=174.0n
+.meas tran lt_10_ADD_OVF FIND v(lt) AT=174.0n
+.meas tran eq_10_ADD_OVF FIND v(eq) AT=174.0n
+.meas tran r7_11_SUB_UDF FIND v(r7) AT=190.0n
+.meas tran r6_11_SUB_UDF FIND v(r6) AT=190.0n
+.meas tran r5_11_SUB_UDF FIND v(r5) AT=190.0n
+.meas tran r4_11_SUB_UDF FIND v(r4) AT=190.0n
+.meas tran r3_11_SUB_UDF FIND v(r3) AT=190.0n
+.meas tran r2_11_SUB_UDF FIND v(r2) AT=190.0n
+.meas tran r1_11_SUB_UDF FIND v(r1) AT=190.0n
+.meas tran r0_11_SUB_UDF FIND v(r0) AT=190.0n
+.meas tran cout_11_SUB_UDF FIND v(cout) AT=190.0n
+.meas tran bout_11_SUB_UDF FIND v(bout) AT=190.0n
+.meas tran gt_11_SUB_UDF FIND v(gt) AT=190.0n
+.meas tran lt_11_SUB_UDF FIND v(lt) AT=190.0n
+.meas tran eq_11_SUB_UDF FIND v(eq) AT=190.0n
+
+.meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=192n
+
+.control
+run
+plot v(r7) v(r6) v(r5) v(r4) v(r3) v(r2) v(r1) v(r0)
+hardcopy ../docs/waveforms/alu_4bit_result.svg v(r7) v(r6) v(r5) v(r4) v(r3) v(r2) v(r1) v(r0)
+* NOTA 2: "gt", "lt" y "eq" son palabras reservadas del parser de
+* expresiones de ngspice (operadores relacionales >,<,=). v(gt)/v(lt)/
+* v(eq) funcionan sin problema dentro de .meas, pero 'plot'/'hardcopy'
+* los interpretan como el operador y fallan con "PPerror: syntax error
+* in line segment". Se resuelve poniendo cada v(...) entre comillas
+* dobles, que fuerza al parser a tratarlo como texto literal.
+plot v(cout) v(bout) "v(gt)" "v(lt)" "v(eq)"
+hardcopy ../docs/waveforms/alu_4bit_flags.svg v(cout) v(bout) "v(gt)" "v(lt)" "v(eq)"
+plot v(s2) v(s1) v(s0)
+hardcopy ../docs/waveforms/alu_4bit_select.svg v(s2) v(s1) v(s0)
+.endc
+
+.end
