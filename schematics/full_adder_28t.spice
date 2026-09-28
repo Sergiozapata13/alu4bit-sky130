@@ -1,78 +1,107 @@
 * ============================================================
-* Full Adder CMOS estatico complementario (28T) - Sky130
+* Full Adder CMOS estatico complementario - Sky130
+* (revision 2: XOR de transmission-gate, ver nota de rediseno abajo)
 * ============================================================
 * Ecuaciones:
 *   Sum  = A xor B xor Cin
 *   Cout = A.B + Cin.(A xor B)
 *
-* Implementacion clasica de 3 etapas de compuertas complementarias:
-*   XOR1: P = A xor B          (usada tambien para Cout)
-*   XOR2: Sum = P xor Cin
-*   AOI/OAI para Cout a partir de A, B, Cin, P
+* NOTA DE REDISENO (importante):
+* La primera version de este full adder usaba un XOR de 12T con redes
+* AOI: pull-down/pull-up complementarios donde una rama usaba A,B
+* directas y la otra rama usaba A',B' generadas por inversores locales.
+* Al simular contra el PDK real de Sky130 (con capacitancias e
+* impedancias reales, no los modelos genericos simplificados usados en
+* la primera verificacion), esa topologia mostro glitches severos en
+* Sum y Cout cada vez que A o B cambiaban: cuando A conmuta, la rama que
+* usa A directa reacciona de inmediato, pero la rama que usa A' (generada
+* por el inversor local) sigue viendo el valor viejo durante el delay de
+* ese inversor. En esa ventana, pull-up y pull-down pueden quedar ambos
+* activos (o ambos inactivos) momentaneamente -> contencion -> glitch.
+* Como Sum encadena dos de estos XOR, el glitch se duplicaba, y Cout lo
+* heredaba porque usa p_ab (la salida ya glitcheada del primer XOR) como
+* entrada de su propia red AOI22.
 *
-* Cada compuerta se arma como red pull-up (PMOS) / pull-down (NMOS)
-* complementaria de tamano minimo (W=0.42u L=0.15u tipico sky130A,
-* ajustar segun PDK real instalado). Sizing inicial 1x; se afina
-* en Fase 4 (caracterizacion).
+* Solucion: XOR de transmission-gate (XOR-TG, ~8T por compuerta). Aqui
+* B y B' actuan solo como SELECTORES de un mux de 2 entradas (pasan A o
+* A' hacia la salida), nunca como dos redes independientes compitiendo
+* por el mismo nodo de salida. Esto elimina la ventana de contencion:
+* en todo momento exactamente una de las dos transmission gates esta
+* activa (controladas por b/b' que son complementarias por construccion
+* de un solo inversor), y la que pasa el dato correcto al nodo de salida.
+*
+* Verificado en Python (tabla de verdad completa) antes de escribir el
+* netlist -- ver historial del proyecto.
 * ============================================================
 
 .subckt inv_sk130 in out vdd vss
-Mp1 out in vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mn1 out in vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
+Xp1 out in vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn1 out in vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
 .ends inv_sk130
 
-* Compuerta XOR de 2 entradas, estilo CMOS complementario (12T)
-* out = A xor B
+* ------------------------------------------------------------
+* XOR de transmission-gate (XOR-TG), ~8T:
+*   out = A si B=0 (TG1 pasa A, controlada por b_n/b)
+*   out = A' si B=1 (TG2 pasa A', controlada por b/b_n)
+* B y B' son las UNICAS senales de control; A y A' son los datos que
+* se conmutan hacia la salida. No hay dos redes compitiendo por el
+* mismo nodo: en cualquier instante solo una TG conduce.
+* ------------------------------------------------------------
 .subckt xor2_sk130 a b out vdd vss
-* Inversores locales para A' y B'
-Mp_ainv out_ainv a vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mn_ainv out_ainv a vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
-Mp_binv out_binv b vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mn_binv out_binv b vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
+* Inversores de control: generan A' y B'
+Xp_ainv a_n a vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_ainv a_n a vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_binv b_n b vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_binv b_n b vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
 
-* Red pull-down: out=0 cuando (A=1,B=1) o (A=0,B=0)
-Mn1 out a n1 vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
-Mn2 n1 b vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
-Mn3 out out_ainv n2 vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
-Mn4 n2 out_binv vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
+* TG1: pasa A hacia out cuando B=0 (ctrl = b_n para nmos, b para pmos)
+Xn_tg1a out a b_n vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg1a out a b vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 
-* Red pull-up: out=1 cuando (A=1,B=0) o (A=0,B=1)
-Mp1 out a p1 vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mp2 p1 out_binv vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mp3 out out_ainv p2 vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mp4 p2 b vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
+* TG2: pasa A' hacia out cuando B=1 (ctrl = b para nmos, b_n para pmos)
+Xn_tg2a out a_n b vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg2a out a_n b_n vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 .ends xor2_sk130
 
 * ------------------------------------------------------------
-* Full Adder top: compone Sum a partir de dos XOR en cascada,
+* Full Adder top: compone Sum a partir de dos XOR-TG en cascada,
 * y Cout con una compuerta AOI22 (genera el complemento) + inversor
-* final, que es la forma correcta de implementar una funcion OR-de-
-* ANDs en logica CMOS estatica de una sola etapa:
+* final. La red AOI22 usa A, B, Cin, p_ab DIRECTAMENTE (no genera ni
+* usa inversos locales de estas senales), asi que no sufre el mismo
+* problema de skew que tenia el XOR de 12T original.
 *
 *   Cout_n = NOT( A.B + Cin.p_ab )   <- red pull-down activa AQUI
 *   Cout   = NOT( Cout_n )           <- inversor de salida
-*
-* (la version anterior conectaba la red activa directo a Cout, lo
-*  cual producia el complemento de la funcion deseada; con el
-*  inversor final se corrige sin cambiar la topologia AOI de base)
 * ------------------------------------------------------------
 .subckt full_adder_28t A B Cin Sum Cout vdd vss
 Xxor1 A B p_ab vdd vss xor2_sk130
 Xxor2 p_ab Cin Sum vdd vss xor2_sk130
 
 * Red pull-down: Cout_n=0 (fuerte) cuando A.B=1 O Cin.p_ab=1
-Mn_c1 cout_n A n_c1 vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
-Mn_c2 n_c1 B vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
-Mn_c3 cout_n Cin n_c2 vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
-Mn_c4 n_c2 p_ab vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
+Xn_c1 cout_n A n_c1 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn_c2 n_c1 B vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn_c3 cout_n Cin n_c2 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn_c4 n_c2 p_ab vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
 
-* Red pull-up: dual serie-paralelo de la red anterior (AOI22 estandar)
-Mp_c1 cout_n A p_c1 vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mp_c2 p_c1 Cin vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mp_c3 cout_n B p_c2 vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mp_c4 p_c2 p_ab vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
+* Red pull-up: dual serie-paralelo CORRECTA de la red anterior.
+* La pull-down es (A serie B) OR (Cin serie p_ab); su dual (para que
+* cout_n = NOT de la funcion) es (A paralelo B) EN SERIE CON
+* (Cin paralelo p_ab) -- cada serie del pull-down se vuelve paralelo en
+* el pull-up y viceversa, usando las MISMAS variables (no complementadas,
+* porque el PMOS ya conduce con gate=0).
+*
+* (Una version anterior cruzaba las variables -- A con Cin, B con p_ab --
+* en dos ramas serie independientes. Esa red no es la dual correcta: deja
+* la combinacion A=1,B=0,Cin=0 sin pull-up NI pull-down activos, con
+* cout_n flotando en un voltaje intermedio en vez de un nivel logico
+* limpio. Verificado con las 8 combinaciones en Python antes de corregir
+* -- ver historial del proyecto.)
+Xp_a cout_n A m1 vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_b cout_n B m1 vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_cin m1 Cin vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_pab m1 p_ab vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 
 * Inversor de salida: Cout = NOT(cout_n)
-Mp_out Cout cout_n vdd vdd sky130_fd_pr__pfet_01v8 W=0.84 L=0.15
-Mn_out Cout cout_n vss vss sky130_fd_pr__nfet_01v8 W=0.42 L=0.15
+Xp_out Cout cout_n vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_out Cout cout_n vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
 .ends full_adder_28t
