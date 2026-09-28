@@ -18,7 +18,7 @@ Ver el documento de investigación previa para contexto completo.
 - [x] Caracterización de delay y potencia — ver tabla abajo
 - [ ] (Opcional) Wallace tree + comparación contra array multiplier
 
-Ver `../schematics/README.md` y `../sim/README.md` para el detalle de cada
+Ver `schematics/README.md` y `sim/README.md` para el detalle de cada
 archivo del proyecto.
 
 ## Instalación del entorno (Linux/WSL)
@@ -55,8 +55,8 @@ cd ../scripts
 ./convert_waveforms.sh
 ```
 
-Ver `../sim/README.md` para el detalle de qué mide y qué genera cada
-testbench, y `waveforms/README.md` para el resultado ya convertido.
+Ver `sim/README.md` para el detalle de qué mide y qué genera cada
+testbench, y `docs/waveforms/README.md` para el resultado ya convertido.
 
 ## Caracterización (delay y potencia)
 
