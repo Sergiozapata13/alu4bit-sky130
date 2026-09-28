@@ -55,12 +55,20 @@ Xp_binv b_n b vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 Xn_binv b_n b vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
 
 * TG1: pasa A hacia out cuando B=0 (ctrl = b_n para nmos, b para pmos)
-Xn_tg1a out a b_n vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
-Xp_tg1a out a b vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+* CORRECCION DE ORDEN DE TERMINALES: sky130_fd_pr__Xfet_01v8 espera
+* d g s b. Aqui el CONTROL (b_n/b) va en la posicion de GATE y el DATO
+* (a) en drain/source -- version anterior tenia esto invertido (dato
+* en gate, control en source), lo cual "accidentalmente" daba la
+* funcion booleana correcta para entradas puramente digitales (0/VDD)
+* pero no es una transmission gate real (fallaba con valores
+* intermedios, encontrado al depurar el mux de la ALU top-level). Ver
+* historial del proyecto para el detalle completo de este hallazgo.
+Xn_tg1a out b_n a vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg1a out b a vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 
 * TG2: pasa A' hacia out cuando B=1 (ctrl = b para nmos, b_n para pmos)
-Xn_tg2a out a_n b vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
-Xp_tg2a out a_n b_n vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_tg2a out b a_n vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg2a out b_n a_n vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 .ends xor2_sk130
 
 * ------------------------------------------------------------

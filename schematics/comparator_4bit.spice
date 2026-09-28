@@ -44,12 +44,15 @@ Xp_binv b_n b vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 Xn_binv b_n b vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
 
 * TG1: pasa A' hacia out cuando B=0
-Xn_tg1 out a_n b_n vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
-Xp_tg1 out a_n b vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+* CORRECCION DE ORDEN DE TERMINALES (mismo hallazgo que en
+* xor2_sk130): el CONTROL va en la posicion de GATE (d g s b), el DATO
+* en drain/source. Version anterior tenia esto invertido.
+Xn_tg1 out b_n a_n vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg1 out b a_n vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 
 * TG2: pasa A hacia out cuando B=1
-Xn_tg2 out a b vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
-Xp_tg2 out a b_n vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_tg2 out b a vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg2 out b_n a vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
 .ends xnor2_sk130
 
 * ------------------------------------------------------------
