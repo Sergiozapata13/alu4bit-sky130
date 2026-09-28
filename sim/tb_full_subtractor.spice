@@ -1,0 +1,114 @@
+* ============================================================
+* Testbench: Full Subtractor - verificacion funcional + delay/potencia
+* (revision 2: estimulos digitales limpios, mismo patron que
+*  tb_full_adder.spice ya verificado contra el PDK real)
+* ============================================================
+.include ../schematics/full_subtractor.spice
+
+* --- Modelos Sky130 ---
+.lib "/home/segio/.ciel/ciel/sky130/versions/1689ac3f2dc763876eaf967227c7dfe831b031ae/sky130A/libs.tech/ngspice/sky130.lib.spice" tt
+
+.param VDD_VAL=1.8
+.param CLOAD=10f
+.param TSTEP=2n
+
+* Secuencia de combinaciones (A,B,Bin), cada una sostenida 16ns, con
+* transiciones rapidas de 0.1ns (mismo contador binario que el full
+* adder: A cambia cada 16ns, B cada 32ns, Bin cada 64ns):
+*   [0,16)    000    [16,32)   100    [32,48)   010    [48,64)   110
+*   [64,80)   001    [80,96)   101    [96,112)  011    [112,128) 111
+
+VA a vss PWL(
++ 0       0
++ 16n     0
++ 16.1n   {VDD_VAL}
++ 32n     {VDD_VAL}
++ 32.1n   0
++ 48n     0
++ 48.1n   {VDD_VAL}
++ 64n     {VDD_VAL}
++ 64.1n   0
++ 80n     0
++ 80.1n   {VDD_VAL}
++ 96n     {VDD_VAL}
++ 96.1n   0
++ 112n    0
++ 112.1n  {VDD_VAL}
++ 128n    {VDD_VAL}
++ )
+
+VB b vss PWL(
++ 0       0
++ 16n     0
++ 32n     0
++ 32.1n   {VDD_VAL}
++ 48n     {VDD_VAL}
++ 64n     {VDD_VAL}
++ 64.1n   0
++ 80n     0
++ 96n     0
++ 96.1n   {VDD_VAL}
++ 112n    {VDD_VAL}
++ 128n    {VDD_VAL}
++ )
+
+VBIN bin vss PWL(
++ 0       0
++ 16n     0
++ 32n     0
++ 48n     0
++ 64n     0
++ 64.1n   {VDD_VAL}
++ 80n     {VDD_VAL}
++ 96n     {VDD_VAL}
++ 112n    {VDD_VAL}
++ 128n    {VDD_VAL}
++ )
+
+VDD vdd 0 DC {VDD_VAL}
+VSS vss 0 DC 0
+
+* --- DUT ---
+Xfs a b bin diff bout vdd vss full_subtractor
+
+* --- Cargas capacitivas ---
+Cdiff diff vss {CLOAD}
+Cbout bout vss {CLOAD}
+
+* --- Analisis ---
+.tran {TSTEP} 128n
+
+* --- Verificacion funcional: muestreo en el centro de cada ventana ---
+.meas tran diff_000 FIND v(diff) AT=8n
+.meas tran bout_000 FIND v(bout) AT=8n
+.meas tran diff_100 FIND v(diff) AT=24n
+.meas tran bout_100 FIND v(bout) AT=24n
+.meas tran diff_010 FIND v(diff) AT=40n
+.meas tran bout_010 FIND v(bout) AT=40n
+.meas tran diff_110 FIND v(diff) AT=56n
+.meas tran bout_110 FIND v(bout) AT=56n
+.meas tran diff_001 FIND v(diff) AT=72n
+.meas tran bout_001 FIND v(bout) AT=72n
+.meas tran diff_101 FIND v(diff) AT=88n
+.meas tran bout_101 FIND v(bout) AT=88n
+.meas tran diff_011 FIND v(diff) AT=104n
+.meas tran bout_011 FIND v(bout) AT=104n
+.meas tran diff_111 FIND v(diff) AT=120n
+.meas tran bout_111 FIND v(bout) AT=120n
+
+* --- Delay: transicion de A en 16n (Diff 0->1, Bout no cambia) ---
+.meas tran tpd_a_diff_r TRIG v(a) VAL={VDD_VAL/2} RISE=1 TD=15n TARG v(diff) VAL={VDD_VAL/2} RISE=1 TD=15n
+
+* --- Delay: transicion de A en 48n (A 0->1: Diff 1->0 FALL, Bout 0->1? ver tabla) ---
+.meas tran tpd_a_diff_f TRIG v(a) VAL={VDD_VAL/2} RISE=1 TD=47n TARG v(diff) VAL={VDD_VAL/2} FALL=1 TD=47n
+
+* --- Potencia dinamica promedio ---
+.meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=128n
+
+.control
+run
+plot v(a) v(b) v(bin) v(diff) v(bout)
+print tpd_a_diff_r tpd_a_diff_f avg_power
+.endc
+
+.end

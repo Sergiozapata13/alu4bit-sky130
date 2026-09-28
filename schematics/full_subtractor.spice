@@ -1,0 +1,48 @@
+* ============================================================
+* Full Subtractor derivado del Full Adder 28T - Sky130
+* ============================================================
+* Tecnica estandar en ALUs: A - B = A + (NOT B) + 1
+* Es decir, un full subtractor de 1 bit es un full adder al que
+* se le invierte la entrada B y se conecta Cin=1 en el bit menos
+* significativo (o el Borrow-in del bit anterior, invertido, para
+* bits intermedios en una resta de N bits en cascada).
+*
+* Diff  = A xor B xor Bin
+* Bout  = A'.B + Bin.(A xnor B)
+*
+* La relacion CORRECTA con el full adder (A - B - Bin = A + B' + B'in,
+* en complemento a dos) requiere invertir DOS entradas antes de sumar,
+* no solo B:
+*
+*   full_adder_28t(A, NOT(B), NOT(Bin)) -> Sum  = Diff   (directo)
+*                                        -> Cout = NOT(Bout) -> se
+*                                           invierte una vez mas
+*
+* Verificado exhaustivamente (las 8 combinaciones de A,B,Bin) en
+* Python antes de escribir este netlist: invertir solo B (sin invertir
+* tambien Bin) da el resultado COMPLEMENTADO en las 8 combinaciones
+* -- ese fue el primer intento y fallaba por completo. La version
+* correcta invierte B y Bin en la entrada, y el Cout de vuelta a la
+* salida.
+* ============================================================
+
+.include full_adder_28t.spice
+
+.subckt full_subtractor A B Bin Diff Bout vdd vss
+* Inversor de B (X, no M: sky130_fd_pr__*fet_01v8 son subcircuitos)
+Xp_binv b_n B vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_binv b_n B vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+
+* Inversor de Bin
+Xp_bininv bin_n Bin vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_bininv bin_n Bin vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+
+* Reutiliza el full adder: A + B' + Bin'
+* Sum del adder = Diff de la resta (directo, sin inversion adicional)
+* Cout del adder = NOT(Bout real) -> requiere inversion final
+Xfa_sub A b_n bin_n Diff cout_adder vdd vss full_adder_28t
+
+* Inversor final: Bout = NOT(cout_adder)
+Xp_boutinv Bout cout_adder vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_boutinv Bout cout_adder vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+.ends full_subtractor
