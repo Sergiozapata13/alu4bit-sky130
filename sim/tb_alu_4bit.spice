@@ -228,7 +228,7 @@ Ceq eq vss {CLOAD}
 .control
 run
 plot v(r7) v(r6) v(r5) v(r4) v(r3) v(r2) v(r1) v(r0)
-hardcopy ../docs/waveforms/alu_4bit_result.svg v(r7) v(r6) v(r5) v(r4) v(r3) v(r2) v(r1) v(r0)
+hardcopy ../docs/waveforms/alu_4bit_result.ps v(r7) v(r6) v(r5) v(r4) v(r3) v(r2) v(r1) v(r0)
 * NOTA 2: "gt", "lt" y "eq" son palabras reservadas del parser de
 * expresiones de ngspice (operadores relacionales >,<,=). v(gt)/v(lt)/
 * v(eq) funcionan sin problema dentro de .meas, pero 'plot'/'hardcopy'
@@ -236,9 +236,9 @@ hardcopy ../docs/waveforms/alu_4bit_result.svg v(r7) v(r6) v(r5) v(r4) v(r3) v(r
 * in line segment". Se resuelve poniendo cada v(...) entre comillas
 * dobles, que fuerza al parser a tratarlo como texto literal.
 plot v(cout) v(bout) "v(gt)" "v(lt)" "v(eq)"
-hardcopy ../docs/waveforms/alu_4bit_flags.svg v(cout) v(bout) "v(gt)" "v(lt)" "v(eq)"
+hardcopy ../docs/waveforms/alu_4bit_flags.ps v(cout) v(bout) "v(gt)" "v(lt)" "v(eq)"
 plot v(s2) v(s1) v(s0)
-hardcopy ../docs/waveforms/alu_4bit_select.svg v(s2) v(s1) v(s0)
+hardcopy ../docs/waveforms/alu_4bit_select.ps v(s2) v(s1) v(s0)
 .endc
 
 .end

@@ -95,7 +95,7 @@ run
 * fallar el hardcopy siguiente aunque tuviera pocas senales -- por eso
 * se dividen TANTO el plot como el hardcopy en dos grupos de <=8.
 plot v(a3) v(a2) v(a1) v(a0) v(b3) v(b2) v(b1) v(b0)
-hardcopy ../docs/waveforms/comparator_4bit_inputs.svg v(a3) v(a2) v(a1) v(a0) v(b3) v(b2) v(b1) v(b0)
+hardcopy ../docs/waveforms/comparator_4bit_inputs.ps v(a3) v(a2) v(a1) v(a0) v(b3) v(b2) v(b1) v(b0)
 * NOTA 2: "gt", "lt" y "eq" son palabras reservadas del parser de
 * expresiones de ngspice (operadores relacionales >,<,=). v(gt)/v(lt)/
 * v(eq) funcionan sin problema dentro de .meas, pero 'plot'/'hardcopy'
@@ -103,7 +103,7 @@ hardcopy ../docs/waveforms/comparator_4bit_inputs.svg v(a3) v(a2) v(a1) v(a0) v(
 * in line segment". Se resuelve poniendo cada v(...) entre comillas
 * dobles, que fuerza al parser a tratarlo como texto literal.
 plot "v(gt)" "v(lt)" "v(eq)"
-hardcopy ../docs/waveforms/comparator_4bit_outputs.svg "v(gt)" "v(lt)" "v(eq)"
+hardcopy ../docs/waveforms/comparator_4bit_outputs.ps "v(gt)" "v(lt)" "v(eq)"
 .endc
 
 .end

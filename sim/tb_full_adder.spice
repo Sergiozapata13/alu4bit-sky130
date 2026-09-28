@@ -143,7 +143,7 @@ plot v(a) v(b) v(cin) v(sum) v(cout)
 * Guarda la grafica como SVG en docs/waveforms/ para documentar en el
 * repo (reproducible: cualquiera que corra este mismo comando obtiene
 * la misma imagen, a diferencia de un screenshot manual).
-hardcopy ../docs/waveforms/full_adder_28t.svg v(a) v(b) v(cin) v(sum) v(cout)
+hardcopy ../docs/waveforms/full_adder_28t.ps v(a) v(b) v(cin) v(sum) v(cout)
 print tpd_a_sum_r tpd_a_sum_f tpd_a_sum_r2 tpd_a_cout_r tpd_a_cout_f avg_power
 .endc
 
