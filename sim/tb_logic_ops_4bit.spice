@@ -1,0 +1,81 @@
+* ============================================================
+* Testbench: bloques logicos de 4 bits (AND, OR, XOR) contra el PDK
+* real de Sky130.
+* ============================================================
+.include ../schematics/logic_ops_4bit.spice
+
+.lib "/home/segio/.ciel/ciel/sky130/versions/1689ac3f2dc763876eaf967227c7dfe831b031ae/sky130A/libs.tech/ngspice/sky130.lib.spice" tt
+
+.param VDD_VAL=1.8
+.param CLOAD=10f
+
+VDD vdd 0 DC {VDD_VAL}
+VSS vss 0 DC 0
+
+* Dos casos de prueba (16ns cada uno, transicion rapida 0.1ns):
+*   combo 0: A=1010 (10)  B=0110 (6)
+*   combo 1: A=0101 (5)   B=1001 (9)
+VA3 a3 vss PWL(0 {VDD_VAL}  16n {VDD_VAL}  16.1n 0.0  32n 0.0)
+VA2 a2 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL})
+VA1 a1 vss PWL(0 {VDD_VAL}  16n {VDD_VAL}  16.1n 0.0  32n 0.0)
+VA0 a0 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL})
+
+VB3 b3 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL})
+VB2 b2 vss PWL(0 {VDD_VAL}  16n {VDD_VAL}  16.1n 0.0  32n 0.0)
+VB1 b1 vss PWL(0 {VDD_VAL}  16n {VDD_VAL}  16.1n 0.0  32n 0.0)
+VB0 b0 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL})
+
+Xand a3 a2 a1 a0 b3 b2 b1 b0 y3a y2a y1a y0a vdd vss and4_sk130
+Xor  a3 a2 a1 a0 b3 b2 b1 b0 y3o y2o y1o y0o vdd vss or4_sk130
+Xxor a3 a2 a1 a0 b3 b2 b1 b0 y3x y2x y1x y0x vdd vss xor4_sk130
+
+Cy3a y3a vss {CLOAD}
+Cy2a y2a vss {CLOAD}
+Cy1a y1a vss {CLOAD}
+Cy0a y0a vss {CLOAD}
+Cy3o y3o vss {CLOAD}
+Cy2o y2o vss {CLOAD}
+Cy1o y1o vss {CLOAD}
+Cy0o y0o vss {CLOAD}
+Cy3x y3x vss {CLOAD}
+Cy2x y2x vss {CLOAD}
+Cy1x y1x vss {CLOAD}
+Cy0x y0x vss {CLOAD}
+
+.tran 0.1n 32n
+
+* combo 0: A=1010(10) B=0110(6) -> AND=0010 OR=1110 XOR=1100
+.meas tran and3_c0 FIND v(y3a) AT=8n
+.meas tran and2_c0 FIND v(y2a) AT=8n
+.meas tran and1_c0 FIND v(y1a) AT=8n
+.meas tran and0_c0 FIND v(y0a) AT=8n
+.meas tran or3_c0 FIND v(y3o) AT=8n
+.meas tran or2_c0 FIND v(y2o) AT=8n
+.meas tran or1_c0 FIND v(y1o) AT=8n
+.meas tran or0_c0 FIND v(y0o) AT=8n
+.meas tran xor3_c0 FIND v(y3x) AT=8n
+.meas tran xor2_c0 FIND v(y2x) AT=8n
+.meas tran xor1_c0 FIND v(y1x) AT=8n
+.meas tran xor0_c0 FIND v(y0x) AT=8n
+
+* combo 1: A=0101(5) B=1001(9) -> AND=0001 OR=1101 XOR=1100
+.meas tran and3_c1 FIND v(y3a) AT=24n
+.meas tran and2_c1 FIND v(y2a) AT=24n
+.meas tran and1_c1 FIND v(y1a) AT=24n
+.meas tran and0_c1 FIND v(y0a) AT=24n
+.meas tran or3_c1 FIND v(y3o) AT=24n
+.meas tran or2_c1 FIND v(y2o) AT=24n
+.meas tran or1_c1 FIND v(y1o) AT=24n
+.meas tran or0_c1 FIND v(y0o) AT=24n
+.meas tran xor3_c1 FIND v(y3x) AT=24n
+.meas tran xor2_c1 FIND v(y2x) AT=24n
+.meas tran xor1_c1 FIND v(y1x) AT=24n
+.meas tran xor0_c1 FIND v(y0x) AT=24n
+
+.meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=32n
+
+.control
+run
+.endc
+
+.end
