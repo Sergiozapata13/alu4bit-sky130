@@ -1,0 +1,94 @@
+* ============================================================
+* Testbench: Comparador de magnitud 4 bits - verificacion funcional +
+* delay/potencia, contra el PDK real de Sky130.
+* ============================================================
+.include ../schematics/comparator_4bit.spice
+
+.lib "/home/segio/.ciel/ciel/sky130/versions/1689ac3f2dc763876eaf967227c7dfe831b031ae/sky130A/libs.tech/ngspice/sky130.lib.spice" tt
+
+.param VDD_VAL=1.8
+.param CLOAD=10f
+
+VDD vdd 0 DC {VDD_VAL}
+VSS vss 0 DC 0
+
+* --- Casos de prueba (16ns cada uno, transicion rapida 0.1ns): ---
+*  0: A=0000 B=0000 (iguales, caso limite inferior)
+*  1: A=1111 B=1111 (iguales, caso limite superior)
+*  2: A=0000 B=1111 (A<B extremo)
+*  3: A=1111 B=0000 (A>B extremo)
+*  4: A=1000 B=1000 (iguales, caso medio)
+*  5: A=0111 B=1000 (A<B, decidido en el MSB)
+*  6: A=1000 B=0111 (A>B, decidido en el MSB)
+*  7: A=1010 B=1001 (A>B, decidido en un bit intermedio, no el LSB)
+*  8: A=1001 B=1010 (A<B, decidido en un bit intermedio)
+
+* A3 A2 A1 A0 / B3 B2 B1 B0 por combinacion (generados con un script
+* Python que arma transiciones de 0.1ns sostenidas 16ns, el mismo
+* metodo ya verificado en tb_full_adder.spice -- evita a mano el error
+* de dejar puntos PWL separados por 16ns sin transicion rapida, que
+* produce ondas triangulares en vez de digitales limpias):
+*   combo 0: A= 0 (0000) B= 0 (0000) -> GT=0 LT=0 EQ=1
+*   combo 1: A=15 (1111) B=15 (1111) -> GT=0 LT=0 EQ=1
+*   combo 2: A= 0 (0000) B=15 (1111) -> GT=0 LT=1 EQ=0
+*   combo 3: A=15 (1111) B= 0 (0000) -> GT=1 LT=0 EQ=0
+*   combo 4: A= 8 (1000) B= 8 (1000) -> GT=0 LT=0 EQ=1
+*   combo 5: A= 7 (0111) B= 8 (1000) -> GT=0 LT=1 EQ=0
+*   combo 6: A= 8 (1000) B= 7 (0111) -> GT=1 LT=0 EQ=0
+*   combo 7: A=10 (1010) B= 9 (1001) -> GT=1 LT=0 EQ=0
+*   combo 8: A= 9 (1001) B=10 (1010) -> GT=0 LT=1 EQ=0
+VA3 a3 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  32.1n 0.0  48n 0.0  48.1n {VDD_VAL}  64n {VDD_VAL}  80n {VDD_VAL}  80.1n 0.0  96n 0.0  96.1n {VDD_VAL}  112n {VDD_VAL}  128n {VDD_VAL}  144n {VDD_VAL})
+VA2 a2 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  32.1n 0.0  48n 0.0  48.1n {VDD_VAL}  64n {VDD_VAL}  64.1n 0.0  80n 0.0  80.1n {VDD_VAL}  96n {VDD_VAL}  96.1n 0.0  112n 0.0  128n 0.0  144n 0.0)
+VA1 a1 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  32.1n 0.0  48n 0.0  48.1n {VDD_VAL}  64n {VDD_VAL}  64.1n 0.0  80n 0.0  80.1n {VDD_VAL}  96n {VDD_VAL}  96.1n 0.0  112n 0.0  112.1n {VDD_VAL}  128n {VDD_VAL}  128.1n 0.0  144n 0.0)
+VA0 a0 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  32.1n 0.0  48n 0.0  48.1n {VDD_VAL}  64n {VDD_VAL}  64.1n 0.0  80n 0.0  80.1n {VDD_VAL}  96n {VDD_VAL}  96.1n 0.0  112n 0.0  128n 0.0  128.1n {VDD_VAL}  144n {VDD_VAL})
+
+VB3 b3 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  48n {VDD_VAL}  48.1n 0.0  64n 0.0  64.1n {VDD_VAL}  80n {VDD_VAL}  96n {VDD_VAL}  96.1n 0.0  112n 0.0  112.1n {VDD_VAL}  128n {VDD_VAL}  144n {VDD_VAL})
+VB2 b2 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  48n {VDD_VAL}  48.1n 0.0  64n 0.0  80n 0.0  96n 0.0  96.1n {VDD_VAL}  112n {VDD_VAL}  112.1n 0.0  128n 0.0  144n 0.0)
+VB1 b1 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  48n {VDD_VAL}  48.1n 0.0  64n 0.0  80n 0.0  96n 0.0  96.1n {VDD_VAL}  112n {VDD_VAL}  112.1n 0.0  128n 0.0  128.1n {VDD_VAL}  144n {VDD_VAL})
+VB0 b0 vss PWL(0 0.0  16n 0.0  16.1n {VDD_VAL}  32n {VDD_VAL}  48n {VDD_VAL}  48.1n 0.0  64n 0.0  80n 0.0  96n 0.0  96.1n {VDD_VAL}  112n {VDD_VAL}  128n {VDD_VAL}  128.1n 0.0  144n 0.0)
+
+Xcmp a3 a2 a1 a0 b3 b2 b1 b0 gt lt eq vdd vss comparator_4bit
+
+Cgt gt vss {CLOAD}
+Clt lt vss {CLOAD}
+Ceq eq vss {CLOAD}
+
+.tran 0.1n 144n
+
+* Muestreo en el centro de cada ventana de 16ns
+.meas tran gt_0 FIND v(gt) AT=8n
+.meas tran lt_0 FIND v(lt) AT=8n
+.meas tran eq_0 FIND v(eq) AT=8n
+.meas tran gt_1 FIND v(gt) AT=24n
+.meas tran lt_1 FIND v(lt) AT=24n
+.meas tran eq_1 FIND v(eq) AT=24n
+.meas tran gt_2 FIND v(gt) AT=40n
+.meas tran lt_2 FIND v(lt) AT=40n
+.meas tran eq_2 FIND v(eq) AT=40n
+.meas tran gt_3 FIND v(gt) AT=56n
+.meas tran lt_3 FIND v(lt) AT=56n
+.meas tran eq_3 FIND v(eq) AT=56n
+.meas tran gt_4 FIND v(gt) AT=72n
+.meas tran lt_4 FIND v(lt) AT=72n
+.meas tran eq_4 FIND v(eq) AT=72n
+.meas tran gt_5 FIND v(gt) AT=88n
+.meas tran lt_5 FIND v(lt) AT=88n
+.meas tran eq_5 FIND v(eq) AT=88n
+.meas tran gt_6 FIND v(gt) AT=104n
+.meas tran lt_6 FIND v(lt) AT=104n
+.meas tran eq_6 FIND v(eq) AT=104n
+.meas tran gt_7 FIND v(gt) AT=120n
+.meas tran lt_7 FIND v(lt) AT=120n
+.meas tran eq_7 FIND v(eq) AT=120n
+.meas tran gt_8 FIND v(gt) AT=136n
+.meas tran lt_8 FIND v(lt) AT=136n
+.meas tran eq_8 FIND v(eq) AT=136n
+
+.meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=144n
+
+.control
+run
+plot v(a3) v(a2) v(a1) v(a0) v(b3) v(b2) v(b1) v(b0) v(gt) v(lt) v(eq)
+.endc
+
+.end

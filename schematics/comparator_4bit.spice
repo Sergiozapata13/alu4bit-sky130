@@ -1,0 +1,152 @@
+* ============================================================
+* Comparador de magnitud de 4 bits (estilo cascada tipo 7485) - Sky130
+* ============================================================
+* Convencion: A[3:0], B[3:0] con A3/B3 = MSB.
+* Salidas: GT (A>B), LT (A<B), EQ (A=B).
+*
+* Por cada bit i (de MSB a LSB):
+*   eq_i = XNOR(A_i, B_i)
+*   gt_i = A_i . B_i'
+*   lt_i = A_i' . B_i
+*
+*   GT_out = GT_in + EQ_in . gt_i   (la decision de un bit mas
+*   LT_out = LT_in + EQ_in . lt_i    significativo se propaga SIN
+*   EQ_out = EQ_in . eq_i            cambios; solo si los bits mas
+*                                     significativos fueron iguales
+*                                     puede el bit actual decidir)
+*
+* Se encadena de MSB a LSB con GT_in=0, LT_in=0, EQ_in=1 en el primer
+* bit (antes de comparar nada se asume igualdad).
+*
+* IMPORTANTE: la formulacion de esta cascada fue verificada
+* exhaustivamente en Python contra las 256 combinaciones posibles de
+* A,B de 4 bits ANTES de escribir este netlist (una primera version de
+* la formula, que dejaba que un bit menos significativo sobreescribiera
+* la decision de uno mas significativo, fallaba en 26/50 casos
+* aleatorios). La dualidad serie-paralelo de la red AOI de GT_out/LT_out
+* tambien se verifico en Python antes de escribir los transistores --
+* ver historial del proyecto.
+* ============================================================
+
+.include full_adder_28t.spice
+
+* ------------------------------------------------------------
+* XNOR de 2 entradas (transmission-gate): out = NOT(A xor B)
+* Misma estructura que xor2_sk130 pero se intercambia cual dato pasa
+* cada transmission gate (pasa A' cuando B=0, pasa A cuando B=1) para
+* obtener directamente la funcion XNOR sin necesitar un inversor extra
+* a la salida.
+* ------------------------------------------------------------
+.subckt xnor2_sk130 a b out vdd vss
+Xp_ainv a_n a vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_ainv a_n a vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_binv b_n b vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_binv b_n b vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+
+* TG1: pasa A' hacia out cuando B=0
+Xn_tg1 out a_n b_n vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg1 out a_n b vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+
+* TG2: pasa A hacia out cuando B=1
+Xn_tg2 out a b vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp_tg2 out a b_n vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+.ends xnor2_sk130
+
+* ------------------------------------------------------------
+* AND de 2 entradas: NAND + inversor (forma estatica complementaria
+* estandar, evita construir un AND directo que requeriria red pull-up
+* no complementaria).
+* ------------------------------------------------------------
+.subckt and2_sk130 a b out vdd vss
+Xn1 nand_out a n1 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn2 n1 b vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp1 nand_out a vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp2 nand_out b vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_out out nand_out vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_out out nand_out vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+.ends and2_sk130
+
+* ------------------------------------------------------------
+* AND de 2 entradas con inversion en una entrada (para A.B' y A'.B):
+* and2_inv_a: out = A' . B     (usada para lt_i = A'.B)
+* and2_inv_b: out = A . B'     (usada para gt_i = A.B')
+* ------------------------------------------------------------
+.subckt and2_inv_b_sk130 a b out vdd vss
+* out = A . B' : NAND(A,B') + inversor. B' se genera localmente.
+Xp_binv b_n b vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_binv b_n b vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn1 nand_out a n1 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn2 n1 b_n vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp1 nand_out a vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp2 nand_out b_n vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_out out nand_out vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_out out nand_out vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+.ends and2_inv_b_sk130
+
+.subckt and2_inv_a_sk130 a b out vdd vss
+* out = A' . B : NAND(A',B) + inversor. A' se genera localmente.
+Xp_ainv a_n a vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_ainv a_n a vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn1 nand_out a_n n1 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn2 n1 b vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xp1 nand_out a_n vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp2 nand_out b vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_out out nand_out vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_out out nand_out vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+.ends and2_inv_a_sk130
+
+* ------------------------------------------------------------
+* Celda de propagacion: out = in_prop + (eq_in . local)
+* Usada tanto para GT (local=gt_i) como para LT (local=lt_i).
+* Red pull-down: in_prop (1 transistor) EN PARALELO CON
+*                (eq_in serie local, 2 transistores)
+* Red pull-up (dual, verificada en Python): serie de
+*                [NOT(in_prop)] con [NOT(eq_in) paralelo NOT(local)]
+* ------------------------------------------------------------
+.subckt prop_or_and_sk130 in_prop eq_in local out vdd vss
+* Pull-down
+Xn_a out_n in_prop vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn_b1 out_n eq_in nb1 vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+Xn_b2 nb1 local vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+
+* Pull-up: rama serie de [pmos gate=in_prop] con [dos pmos en paralelo
+* gate=eq_in y gate=local]
+Xp_a out_n in_prop pm1 vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_b1 pm1 eq_in vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xp_b2 pm1 local vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+
+* Inversor de salida: out = NOT(out_n)
+Xp_out out out_n vdd vdd sky130_fd_pr__pfet_01v8 l=0.15 w=0.84
+Xn_out out out_n vss vss sky130_fd_pr__nfet_01v8 l=0.15 w=0.42
+.ends prop_or_and_sk130
+
+* ------------------------------------------------------------
+* Celda de 1 bit: recibe GT_in, LT_in, EQ_in del bit mas significativo
+* y produce GT_out, LT_out, EQ_out para pasar al siguiente bit (menos
+* significativo).
+* ------------------------------------------------------------
+.subckt cmp_bit A B GT_in LT_in EQ_in GT_out LT_out EQ_out vdd vss
+Xeq A B eq_i vdd vss xnor2_sk130
+Xgt A B gt_i vdd vss and2_inv_b_sk130
+Xlt A B lt_i vdd vss and2_inv_a_sk130
+
+Xprop_gt GT_in EQ_in gt_i GT_out vdd vss prop_or_and_sk130
+Xprop_lt LT_in EQ_in lt_i LT_out vdd vss prop_or_and_sk130
+
+* EQ_out = EQ_in . eq_i (AND simple)
+Xeq_out EQ_in eq_i EQ_out vdd vss and2_sk130
+.ends cmp_bit
+
+* ------------------------------------------------------------
+* Comparador de 4 bits completo: encadena 4 celdas de MSB a LSB.
+* A3,B3 = MSB ; A0,B0 = LSB.
+* Entrada inicial (antes del MSB): GT=0, LT=0, EQ=1 (constantes).
+* ------------------------------------------------------------
+.subckt comparator_4bit A3 A2 A1 A0 B3 B2 B1 B0 GT LT EQ vdd vss
+* Constantes de entrada al primer bit (MSB): GT_in=0, LT_in=0, EQ_in=1,
+* atadas DIRECTAMENTE a vss/vdd (no dejarlas como nodos flotantes).
+Xbit3 A3 B3 vss vss vdd gt3 lt3 eq3 vdd vss cmp_bit
+Xbit2 A2 B2 gt3 lt3 eq3 gt2 lt2 eq2 vdd vss cmp_bit
+Xbit1 A1 B1 gt2 lt2 eq2 gt1 lt1 eq1 vdd vss cmp_bit
+Xbit0 A0 B0 gt1 lt1 eq1 GT LT EQ vdd vss cmp_bit
+.ends comparator_4bit
