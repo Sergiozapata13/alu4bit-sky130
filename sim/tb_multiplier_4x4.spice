@@ -1,0 +1,128 @@
+* ============================================================
+* Testbench: Multiplicador Array 4x4 - verificacion funcional +
+* delay/potencia, contra el PDK real de Sky130.
+* ============================================================
+.include ../schematics/multiplier_4x4.spice
+
+.lib "/home/segio/.ciel/ciel/sky130/versions/1689ac3f2dc763876eaf967227c7dfe831b031ae/sky130A/libs.tech/ngspice/sky130.lib.spice" tt
+
+.param VDD_VAL=1.8
+.param CLOAD=10f
+
+VDD vdd 0 DC {VDD_VAL}
+VSS vss 0 DC 0
+
+* Casos de prueba (20ns cada uno, transicion rapida 0.1ns), generados
+* con un script Python (mismo metodo ya usado en los testbenches
+* anteriores) para evitar errores de transcripcion manual en el PWL:
+*   0: 0  x 0  = 0    (00000000)  limite inferior
+*   1: 15 x 15 = 225  (10000111)  limite superior, producto maximo
+*   2: 1  x 15 = 15   (11110000)  identidad con el maximo
+*   3: 15 x 1  = 15   (11110000)  identidad, orden invertido
+*   4: 7  x 7  = 49   (10001100)  cuadrado medio
+*   5: 9  x 6  = 54   (01101100)  caso general con varios acarreos
+*   6: 12 x 11 = 132  (00100001)  caso general, bits altos activos
+*   7: 3  x 5  = 15   (11110000)  caso pequeno
+VA0 a0 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  60n {VDD_VAL}  80n {VDD_VAL}  100n {VDD_VAL}  120n {VDD_VAL}  120.1n 0.0  140n 0.0  140.1n {VDD_VAL}  160n {VDD_VAL})
+VA1 a1 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  40.1n 0.0  60n 0.0  60.1n {VDD_VAL}  80n {VDD_VAL}  100n {VDD_VAL}  100.1n 0.0  120n 0.0  140n 0.0  140.1n {VDD_VAL}  160n {VDD_VAL})
+VA2 a2 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  40.1n 0.0  60n 0.0  60.1n {VDD_VAL}  80n {VDD_VAL}  100n {VDD_VAL}  100.1n 0.0  120n 0.0  120.1n {VDD_VAL}  140n {VDD_VAL}  140.1n 0.0  160n 0.0)
+VA3 a3 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  40.1n 0.0  60n 0.0  60.1n {VDD_VAL}  80n {VDD_VAL}  80.1n 0.0  100n 0.0  100.1n {VDD_VAL}  120n {VDD_VAL}  140n {VDD_VAL}  140.1n 0.0  160n 0.0)
+
+VB0 b0 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  60n {VDD_VAL}  80n {VDD_VAL}  100n {VDD_VAL}  100.1n 0.0  120n 0.0  120.1n {VDD_VAL}  140n {VDD_VAL}  160n {VDD_VAL})
+VB1 b1 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  60n {VDD_VAL}  60.1n 0.0  80n 0.0  80.1n {VDD_VAL}  100n {VDD_VAL}  120n {VDD_VAL}  140n {VDD_VAL}  140.1n 0.0  160n 0.0)
+VB2 b2 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  60n {VDD_VAL}  60.1n 0.0  80n 0.0  80.1n {VDD_VAL}  100n {VDD_VAL}  120n {VDD_VAL}  120.1n 0.0  140n 0.0  140.1n {VDD_VAL}  160n {VDD_VAL})
+VB3 b3 vss PWL(0 0.0  20n 0.0  20.1n {VDD_VAL}  40n {VDD_VAL}  60n {VDD_VAL}  60.1n 0.0  80n 0.0  100n 0.0  120n 0.0  120.1n {VDD_VAL}  140n {VDD_VAL}  140.1n 0.0  160n 0.0)
+
+Xmul a3 a2 a1 a0 b3 b2 b1 b0 p7 p6 p5 p4 p3 p2 p1 p0 vdd vss multiplier_4x4
+
+Cp0 p0 vss {CLOAD}
+Cp1 p1 vss {CLOAD}
+Cp2 p2 vss {CLOAD}
+Cp3 p3 vss {CLOAD}
+Cp4 p4 vss {CLOAD}
+Cp5 p5 vss {CLOAD}
+Cp6 p6 vss {CLOAD}
+Cp7 p7 vss {CLOAD}
+
+.tran 0.1n 160n
+
+* Muestreo en el centro de cada ventana de 20ns
+.meas tran p0_0 FIND v(p0) AT=10n
+.meas tran p1_0 FIND v(p1) AT=10n
+.meas tran p2_0 FIND v(p2) AT=10n
+.meas tran p3_0 FIND v(p3) AT=10n
+.meas tran p4_0 FIND v(p4) AT=10n
+.meas tran p5_0 FIND v(p5) AT=10n
+.meas tran p6_0 FIND v(p6) AT=10n
+.meas tran p7_0 FIND v(p7) AT=10n
+
+.meas tran p0_1 FIND v(p0) AT=30n
+.meas tran p1_1 FIND v(p1) AT=30n
+.meas tran p2_1 FIND v(p2) AT=30n
+.meas tran p3_1 FIND v(p3) AT=30n
+.meas tran p4_1 FIND v(p4) AT=30n
+.meas tran p5_1 FIND v(p5) AT=30n
+.meas tran p6_1 FIND v(p6) AT=30n
+.meas tran p7_1 FIND v(p7) AT=30n
+
+.meas tran p0_2 FIND v(p0) AT=50n
+.meas tran p1_2 FIND v(p1) AT=50n
+.meas tran p2_2 FIND v(p2) AT=50n
+.meas tran p3_2 FIND v(p3) AT=50n
+.meas tran p4_2 FIND v(p4) AT=50n
+.meas tran p5_2 FIND v(p5) AT=50n
+.meas tran p6_2 FIND v(p6) AT=50n
+.meas tran p7_2 FIND v(p7) AT=50n
+
+.meas tran p0_3 FIND v(p0) AT=70n
+.meas tran p1_3 FIND v(p1) AT=70n
+.meas tran p2_3 FIND v(p2) AT=70n
+.meas tran p3_3 FIND v(p3) AT=70n
+.meas tran p4_3 FIND v(p4) AT=70n
+.meas tran p5_3 FIND v(p5) AT=70n
+.meas tran p6_3 FIND v(p6) AT=70n
+.meas tran p7_3 FIND v(p7) AT=70n
+
+.meas tran p0_4 FIND v(p0) AT=90n
+.meas tran p1_4 FIND v(p1) AT=90n
+.meas tran p2_4 FIND v(p2) AT=90n
+.meas tran p3_4 FIND v(p3) AT=90n
+.meas tran p4_4 FIND v(p4) AT=90n
+.meas tran p5_4 FIND v(p5) AT=90n
+.meas tran p6_4 FIND v(p6) AT=90n
+.meas tran p7_4 FIND v(p7) AT=90n
+
+.meas tran p0_5 FIND v(p0) AT=110n
+.meas tran p1_5 FIND v(p1) AT=110n
+.meas tran p2_5 FIND v(p2) AT=110n
+.meas tran p3_5 FIND v(p3) AT=110n
+.meas tran p4_5 FIND v(p4) AT=110n
+.meas tran p5_5 FIND v(p5) AT=110n
+.meas tran p6_5 FIND v(p6) AT=110n
+.meas tran p7_5 FIND v(p7) AT=110n
+
+.meas tran p0_6 FIND v(p0) AT=130n
+.meas tran p1_6 FIND v(p1) AT=130n
+.meas tran p2_6 FIND v(p2) AT=130n
+.meas tran p3_6 FIND v(p3) AT=130n
+.meas tran p4_6 FIND v(p4) AT=130n
+.meas tran p5_6 FIND v(p5) AT=130n
+.meas tran p6_6 FIND v(p6) AT=130n
+.meas tran p7_6 FIND v(p7) AT=130n
+
+.meas tran p0_7 FIND v(p0) AT=150n
+.meas tran p1_7 FIND v(p1) AT=150n
+.meas tran p2_7 FIND v(p2) AT=150n
+.meas tran p3_7 FIND v(p3) AT=150n
+.meas tran p4_7 FIND v(p4) AT=150n
+.meas tran p5_7 FIND v(p5) AT=150n
+.meas tran p6_7 FIND v(p6) AT=150n
+.meas tran p7_7 FIND v(p7) AT=150n
+
+.meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=160n
+
+.control
+run
+.endc
+
+.end

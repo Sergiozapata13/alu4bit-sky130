@@ -1,0 +1,127 @@
+* ============================================================
+* Multiplicador Array 4x4 (A[3:0] x B[3:0] = P[7:0]) - Sky130
+* ============================================================
+* Arquitectura "array multiplier" clasica: 16 productos parciales
+* (pp[j][i] = A[i] . B[j], peso = i+j) sumados en 3 filas de
+* sumadores (half adders en la primera columna de cada fila, full
+* adders en el resto), con acarreo propagandose en diagonal hacia
+* la fila siguiente.
+*
+* Esta es la diferencia principal frente al post de LinkedIn de
+* referencia, que usaba un multiplicador 2x2 truncado: aqui se
+* implementa el producto COMPLETO de 4x4 bits (resultado de 8 bits).
+*
+* IMPORTANTE: la arquitectura fue verificada exhaustivamente en Python
+* (las 256 combinaciones de A,B de 4 bits) ANTES de escribir este
+* netlist. Una primera version de la estructura de suma en cascada
+* tenia un error de alineamiento de columnas/acarreos entre etapas
+* (fallaba en 24/256 casos); la version aqui implementada es la
+* corregida y verificada al 100%. Ver historial del proyecto.
+*
+* Diagrama de la suma (S=suma, C=acarreo, HA=half adder, FA=full adder):
+*
+*           pp03 pp02 pp01 pp00
+*      pp13 pp12 pp11 pp10
+*  pp23 pp22 pp21 pp20
+*  pp33 pp32 pp31 pp30
+*  --------------------------------
+*  P7   P6   P5   P4   P3   P2   P1   P0
+*
+* Etapa 1: HA(pp01,pp10)->s1_0,c1_0 ; FA(pp02,pp11,c1_0)->s1_1,c1_1 ;
+*          FA(pp03,pp12,c1_1)->s1_2,c1_2 ; FA(0,pp13,c1_2)->s1_3,c1_3
+*          P1 = s1_0
+* Etapa 2: HA(s1_1,pp20)->s2_0,c2_0 ; FA(s1_2,pp21,c2_0)->s2_1,c2_1 ;
+*          FA(s1_3,pp22,c2_1)->s2_2,c2_2 ; FA(c1_3,pp23,c2_2)->s2_3,c2_3
+*          P2 = s2_0
+* Etapa 3: HA(s2_1,pp30)->s3_0,c3_0 ; FA(s2_2,pp31,c3_0)->s3_1,c3_1 ;
+*          FA(s2_3,pp32,c3_1)->s3_2,c3_2 ; FA(c2_3,pp33,c3_2)->s3_3,c3_3
+*          P3=s3_0 P4=s3_1 P5=s3_2 P6=s3_3 P7=c3_3
+* ============================================================
+
+.include comparator_4bit.spice
+
+* ------------------------------------------------------------
+* Half adder: S = A xor B, C = A.B
+* Reutiliza xor2_sk130 (transmission-gate, de full_adder_28t.spice,
+* incluido transitivamente via comparator_4bit.spice) y and2_sk130
+* (NAND+inversor, de comparator_4bit.spice).
+* ------------------------------------------------------------
+.subckt half_adder_sk130 A B S C vdd vss
+Xxor A B S vdd vss xor2_sk130
+Xand A B C vdd vss and2_sk130
+.ends half_adder_sk130
+
+* ------------------------------------------------------------
+* Multiplicador 4x4 completo.
+* ------------------------------------------------------------
+.subckt multiplier_4x4 A3 A2 A1 A0 B3 B2 B1 B0 P7 P6 P5 P4 P3 P2 P1 P0 vdd vss
+
+* Productos parciales: pp_ji = A_i . B_j
+Xpp00 A0 B0 pp00 vdd vss and2_sk130
+Xpp01 A1 B0 pp01 vdd vss and2_sk130
+Xpp02 A2 B0 pp02 vdd vss and2_sk130
+Xpp03 A3 B0 pp03 vdd vss and2_sk130
+
+Xpp10 A0 B1 pp10 vdd vss and2_sk130
+Xpp11 A1 B1 pp11 vdd vss and2_sk130
+Xpp12 A2 B1 pp12 vdd vss and2_sk130
+Xpp13 A3 B1 pp13 vdd vss and2_sk130
+
+Xpp20 A0 B2 pp20 vdd vss and2_sk130
+Xpp21 A1 B2 pp21 vdd vss and2_sk130
+Xpp22 A2 B2 pp22 vdd vss and2_sk130
+Xpp23 A3 B2 pp23 vdd vss and2_sk130
+
+Xpp30 A0 B3 pp30 vdd vss and2_sk130
+Xpp31 A1 B3 pp31 vdd vss and2_sk130
+Xpp32 A2 B3 pp32 vdd vss and2_sk130
+Xpp33 A3 B3 pp33 vdd vss and2_sk130
+
+* P0 directo
+* (P0 = pp00, se conecta directo en la instanciacion de arriba? No: P0
+*  es una salida del subckt, asi que se resuelve con un buffer/inversor
+*  doble para mantener el mismo nombre de nodo. Mas simple: usamos un
+*  cortocircuito logico -- SPICE permite unir dos nombres de nodo del
+*  mismo subckt renombrando en la instancia. Aqui pp00 SE INSTANCIA
+*  directamente en el puerto P0.)
+
+* Etapa 1: fila 0 + fila 1
+Xha1_0 pp01 pp10 s1_0 c1_0 vdd vss half_adder_sk130
+Xfa1_1 pp02 pp11 c1_0 s1_1 c1_1 vdd vss full_adder_28t
+Xfa1_2 pp03 pp12 c1_1 s1_2 c1_2 vdd vss full_adder_28t
+Xfa1_3 vss  pp13 c1_2 s1_3 c1_3 vdd vss full_adder_28t
+
+* Etapa 2: fila 2 + resultado etapa 1
+Xha2_0 s1_1 pp20 s2_0 c2_0 vdd vss half_adder_sk130
+Xfa2_1 s1_2 pp21 c2_0 s2_1 c2_1 vdd vss full_adder_28t
+Xfa2_2 s1_3 pp22 c2_1 s2_2 c2_2 vdd vss full_adder_28t
+Xfa2_3 c1_3 pp23 c2_2 s2_3 c2_3 vdd vss full_adder_28t
+
+* Etapa 3: fila 3 + resultado etapa 2
+Xha3_0 s2_1 pp30 s3_0 c3_0 vdd vss half_adder_sk130
+Xfa3_1 s2_2 pp31 c3_0 s3_1 c3_1 vdd vss full_adder_28t
+Xfa3_2 s2_3 pp32 c3_1 s3_2 c3_2 vdd vss full_adder_28t
+Xfa3_3 c2_3 pp33 c3_2 s3_3 c3_3 vdd vss full_adder_28t
+
+* Salidas finales
+Xbuf_p0 pp00 P0 vdd vss inv_buf_sk130
+Xbuf_p1 s1_0 P1 vdd vss inv_buf_sk130
+Xbuf_p2 s2_0 P2 vdd vss inv_buf_sk130
+Xbuf_p3 s3_0 P3 vdd vss inv_buf_sk130
+Xbuf_p4 s3_1 P4 vdd vss inv_buf_sk130
+Xbuf_p5 s3_2 P5 vdd vss inv_buf_sk130
+Xbuf_p6 s3_3 P6 vdd vss inv_buf_sk130
+Xbuf_p7 c3_3 P7 vdd vss inv_buf_sk130
+
+.ends multiplier_4x4
+
+* ------------------------------------------------------------
+* Buffer no-inversor (dos inversores en cascada), usado para llevar
+* las salidas internas a los puertos P[7:0] sin depender de que SPICE
+* permita "alias" directo de nodos internos a puertos del subcircuito
+* (mas prolijo y da un poco de drive extra a cada salida).
+* ------------------------------------------------------------
+.subckt inv_buf_sk130 in out vdd vss
+Xinv1 in mid vdd vss inv_sk130
+Xinv2 mid out vdd vss inv_sk130
+.ends inv_buf_sk130
