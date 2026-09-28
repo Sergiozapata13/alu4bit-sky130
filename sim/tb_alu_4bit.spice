@@ -25,7 +25,14 @@
 * de correr contra el PDK real -- ver historial del proyecto.
 * ============================================================
 
-.include ../schematics/alu_primitives.spice
+* alu_4bit_top.spice ya incluye alu_primitives.spice internamente (ver
+* la nota en ese archivo) -- no se repite aqui el include, porque eso
+* fue lo que causaba warnings "redefinition of .subckt ..., ignored"
+* para xor2_sk130/xnor2_sk130/or2_sk130/or4_sk130/xor4_sk130 (ngspice
+* ignora la segunda definicion y sigue con la primera, asi que el
+* resultado numerico no cambiaba, pero es una redundancia fragil: si
+* algun dia alu_primitives.spice y su copia transitiva divergen, esto
+* enmascararia el problema en vez de fallar ruidosamente).
 .include ../schematics/alu_4bit_top.spice
 
 .lib "/home/segio/.ciel/ciel/sky130/versions/1689ac3f2dc763876eaf967227c7dfe831b031ae/sky130A/libs.tech/ngspice/sky130.lib.spice" tt
