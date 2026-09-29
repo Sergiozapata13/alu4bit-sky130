@@ -16,6 +16,7 @@ Ver el documento de investigación previa para contexto completo.
 - [x] Mux de selección 8 vías (S[2:0])
 - [x] Integración top-level (`alu_4bit_top.spice`, 8 operaciones seleccionables)
 - [x] Caracterización de delay y potencia — ver tabla abajo
+- [x] Camino crítico identificado y documentado (multiplicador, ruta A3→P5)
 - [ ] (Opcional) Wallace tree + comparación contra array multiplier
 
 Ver `schematics/README.md` y `sim/README.md` para el detalle de cada
@@ -303,10 +304,54 @@ ningún caso.
   instalación local del PDK (ciel) — ajustarla a la ruta real en tu máquina si difiere,
   buscándola con `find ~/.ciel -path "*sky130A/libs.tech/ngspice*"`.
 
+## Camino crítico de la ALU
+
+El delay de propagación más alto medido en todo el proyecto (697.4 ps,
+`A3→P5`, ver tabla de arriba) ocurre en el multiplicador array. Se trazó a
+mano la topología de `multiplier_4x4` (ver diagrama de suma en cascada en
+`schematics/multiplier_4x4.spice`) para identificar exactamente qué ruta
+combinacional produce ese resultado.
+
+`A3` alimenta 4 productos parciales distintos (`pp03`, `pp13`, `pp23`,
+`pp33`), cada uno entrando en un punto distinto de la malla de sumadores:
+
+| Entrada de A3 | Ruta hasta la salida | Celdas sumadoras atravesadas |
+|---|---|---|
+| `pp03` → `fa1_2` → `fa2_1` → `ha3_0` → `fa3_1` → `fa3_2` → **P5** | 5 |
+| `pp13` → `fa1_3` → `fa2_3` → `fa3_3` → **P7** | 3 |
+| `pp23` → `fa2_3` → `fa3_3` → **P7** | 2 |
+| `pp33` → `fa3_3` → **P6**/**P7** | 1 |
+
+Contra la intuición de que el bit más significativo (`P7`) sería el más
+lento, la ruta más larga es la que llega a **P5** vía `pp03`: al entrar en
+la primera fila de sumadores (columna 3 de 4), la señal tiene que
+propagarse en diagonal por 5 celdas completas (mezclando tanto la suma
+como el acarreo de cada etapa) antes de llegar a la salida, mientras que
+las rutas que entran más tarde en la malla (`pp13`, `pp23`, `pp33`) le
+"ganan terreno" porque ya arrancan más cerca del final de la cadena. Esto
+es una consecuencia estructural de la arquitectura *array multiplier*: la
+profundidad combinacional no crece monótonamente con el peso del bit de
+salida, sino con cuántas etapas de suma diagonal tiene que atravesar cada
+producto parcial según en qué fila entra.
+
+Esto confirma que el **camino crítico de la ALU completa pasa por el
+multiplicador**, específicamente por esta ruta de 5 sumadores en cascada.
+El delay medido de la ALU top-level (S→R, 561.9 ps peor caso, ver tabla de
+arriba) es menor que el del multiplicador aislado (697.4 ps) porque las
+transiciones S→R que se midieron no necesariamente ejercitan esta ruta
+específica del multiplicador — el delay real "MUL activo, peor caso de A/B"
+dentro de la ALU sería, en el peor caso, similar o ligeramente mayor a los
+697.4 ps aislados (por el mux de salida adicional), pero no se aisló esa
+combinación exacta de A/B en el testbench actual de la ALU.
+
 ## Posible siguiente paso: Wallace tree
 
 Único ítem pendiente del roadmap original: implementar el multiplicador 4x4
 como árbol de Wallace (en vez de array multiplier) y comparar delay/potencia
-entre ambas arquitecturas con el mismo `CLOAD`. No es necesario para que la
-ALU esté completa — el array multiplier ya es funcional y está integrado
-en el top-level.
+entre ambas arquitecturas con el mismo `CLOAD`. Un Wallace tree reduce la
+profundidad combinacional comprimiendo los productos parciales en paralelo
+(con sumadores 3:2) en vez de propagarlos en cascada diagonal fila por
+fila — la mejora esperada es justamente en la ruta identificada arriba
+(5 celdas en cascada), que debería bajar a O(log n) etapas en vez de O(n).
+No es necesario para que la ALU esté completa — el array multiplier ya es
+funcional y está integrado en el top-level.
