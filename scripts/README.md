@@ -98,3 +98,53 @@ cd sim
 Ver la sección "Análisis de esquinas de proceso" en el `README.md`
 principal para los resultados obtenidos en `ff` y `ss` sobre los 6
 testbenches del proyecto.
+
+## `run_sweep.sh`
+
+Corre un testbench con un VDD y/o una temperatura distintos a los
+nominales (1.8V / 27°C), sin mantener un archivo duplicado por cada
+combinación.
+
+**Por qué existe:** igual que con las esquinas de proceso, la forma más
+simple y auditable de variar VDD/TEMP sin lógica condicional dentro de
+cada netlist es generar una copia temporal del testbench, sustituir la
+línea `.param VDD_VAL=...` y/o insertar una directiva `.temp` antes del
+`.end` con `sed`, correr ngspice sobre esa copia, y borrarla al
+terminar. El archivo original nunca se modifica.
+
+**Uso:**
+```bash
+cd sim
+../scripts/run_sweep.sh tb_full_adder.spice 1.62        # solo VDD
+../scripts/run_sweep.sh tb_full_adder.spice "" 85        # solo TEMP
+../scripts/run_sweep.sh tb_full_adder.spice 1.98 0       # ambos
+```
+
+Es la base sobre la que se construye `run_grid.sh` (abajo).
+
+## `run_grid.sh`
+
+Corre los 6 testbenches del proyecto contra un grid factorial completo
+de VDD × temperatura (3×3 = 9 combinaciones por bloque, 54 corridas en
+total), y junta todas las mediciones (`avg_power` y cada `tpd_*`) en un
+único CSV.
+
+**Por qué existe:** un barrido simple (variar VDD sola, luego TEMP sola,
+mantiniendo la otra en su valor nominal) no puede revelar una
+interacción entre ambas variables — solo un grid cruzado, donde se
+prueban las 9 combinaciones de `{1.62V, 1.8V, 1.98V} × {0°C, 27°C,
+85°C}`, permite ver eso. Ver la sección "Barrido de VDD y temperatura
+(grid completo)" en el `README.md` principal, donde este grid reveló una
+interacción no lineal de potencia en la ALU top-level que no aparece en
+ningún bloque individual.
+
+**Uso:**
+```bash
+cd sim
+../scripts/run_grid.sh
+```
+
+Genera `grid_results.csv` en el directorio actual (formato:
+`testbench,vdd,temp,measurement,value`), reutilizando `run_sweep.sh`
+internamente para cada combinación que no sea la nominal (1.8V/27°C, que
+corre directo).

@@ -18,6 +18,7 @@ Ver el documento de investigación previa para contexto completo.
 - [x] Caracterización de delay y potencia — ver tabla abajo
 - [x] Camino crítico identificado y documentado (multiplicador, ruta A3→P5)
 - [x] Análisis de esquinas de proceso (tt/ff/ss) en los 6 bloques
+- [x] Barrido factorial completo VDD×temperatura (54 corridas, 6 bloques × 9 combinaciones) — reveló interacción no lineal de potencia (+54.3%) exclusiva de la ALU top-level
 - [ ] (Opcional) Wallace tree + comparación contra array multiplier
 
 Ver `schematics/README.md` y `sim/README.md` para el detalle de cada
@@ -370,6 +371,104 @@ cd sim
 ../scripts/run_corner.sh tb_full_adder.spice ff | grep -E "tpd_|avg_power"
 ../scripts/run_corner.sh tb_full_adder.spice ss | grep -E "tpd_|avg_power"
 # ... repetir con cada tb_*.spice
+```
+
+## Barrido de VDD y temperatura (grid completo)
+
+Además de la variación de proceso (esquinas), un diseño real tiene que
+tolerar variación de VDD (batería descargándose, ruido de la fuente) y de
+temperatura ambiente. Se corrió cada uno de los 6 testbenches contra un
+**grid completo** de 3 valores de VDD × 3 de temperatura (9 combinaciones
+por bloque, 54 corridas en total, esquina de proceso `tt` fija):
+
+- VDD ∈ {1.62V (−10%), 1.8V (nominal), 1.98V (+10%)}
+- TEMP ∈ {0°C, 27°C (nominal), 85°C}
+
+Se prefirió el grid completo sobre variar VDD y temperatura por separado
+porque permite ver **interacciones** entre ambas variables — y, como se
+detalla abajo, apareció una interacción real que un barrido de una sola
+variable a la vez no hubiera detectado.
+
+Automatizado con `scripts/run_grid.sh`, que corre las 54 combinaciones
+usando `run_sweep.sh` internamente y junta todo en un CSV
+(`sim/grid_results.csv`, versionado en el repo para que quede trazado el
+run exacto detrás de este análisis, aunque sea regenerable con
+`run_grid.sh`). El
+análisis completo — datos crudos, tabla pivote 3×3 por bloque para delay y
+potencia, y las gráficas de esta sección — está en
+[`docs/vdd_temp_grid_analysis.xlsx`](docs/vdd_temp_grid_analysis.xlsx).
+
+### Peor-caso delay por esquina VDD/temperatura
+
+| Bloque | 1.62V,0°C | 1.62V,27°C | 1.62V,85°C | 1.8V,0°C | 1.8V,27°C (tt nominal) | 1.8V,85°C | 1.98V,0°C | 1.98V,27°C | 1.98V,85°C |
+|---|---|---|---|---|---|---|---|---|---|
+| Full adder | 219.9 | 220.3 | 234.1 | 177.7 | 186.5 | 199.6 | 157.1 | 162.2 | 173.1 |
+| Full subtractor | 247.8 | 243.8 | 239.8 | 201.6 | 201.0 | 201.6 | 173.6 | 174.8 | 177.0 |
+| Comparador 4-bit | 531.5 | 535.3 | 539.2 | 451.6 | 466.9 | 466.3 | 393.0 | 398.0 | 409.0 |
+| Lógica AND+OR+XOR | 168.8 | 168.2 | 167.0 | 144.4 | 145.4 | 145.9 | 127.1 | 127.8 | 130.2 |
+| Multiplicador array | **945.4** | 904.2 | 860.5 | 708.6 | 697.4 | 702.2 | 573.1 | 577.7 | 590.3 |
+| ALU top-level (S→R) | 726.9 | 694.0 | 637.7 | 574.1 | 561.9 | 538.0 | 487.5 | 479.4 | 463.4 |
+
+*(delay en ps; cada valor es el peor de todas las transiciones `tpd_*` medidas en esa combinación de ese testbench)*
+
+### Potencia promedio por esquina VDD/temperatura
+
+| Bloque | 1.62V,0°C | 1.62V,27°C | 1.62V,85°C | 1.8V,0°C | 1.8V,27°C (tt nominal) | 1.8V,85°C | 1.98V,0°C | 1.98V,27°C | 1.98V,85°C |
+|---|---|---|---|---|---|---|---|---|---|
+| Full adder | 1.061 | 1.064 | 1.129 | 1.345 | 1.365 | 1.499 | 1.648 | 1.697 | 1.873 |
+| Full subtractor | 1.893 | 1.919 | 2.039 | 2.336 | 2.383 | 2.576 | 2.852 | 2.912 | 3.159 |
+| Comparador 4-bit | 6.652 | 6.784 | 7.373 | 8.330 | 8.497 | 9.439 | 10.212 | 10.551 | 11.855 |
+| Lógica AND+OR+XOR | 2.779 | 2.817 | 3.041 | 3.480 | 3.539 | 3.876 | 4.306 | 4.394 | 4.910 |
+| Multiplicador array | 18.412 | 19.052 | 20.959 | 23.490 | 24.347 | 27.570 | 30.064 | 31.073 | 35.297 |
+| ALU top-level | 20.908 | 21.332 | 23.884 | 26.504 | 27.393 | 33.104 | 34.937 | 38.200 | **67.764** |
+
+*(potencia en µW)*
+
+![Heatmap: potencia de la ALU top-level por VDD × temperatura](docs/waveforms/vdd_temp_grid_alu_power.png)
+
+### Hallazgo: interacción no lineal en la ALU completa
+
+Los 6 bloques individuales se comportan de forma predecible: en la esquina
+más desfavorable de potencia (VDD=1.98V, TEMP=85°C), el valor real se
+desvía solo 1.7%–3.8% de lo que predeciría sumar el efecto de VDD y el de
+temperatura por separado (extrapolación lineal desde el punto nominal) —
+consistente con que, en un circuito pequeño, la potencia dinámica domina y
+escala de forma casi independiente en cada variable dentro de este rango.
+
+**La ALU top-level rompe ese patrón**: en la misma esquina, la potencia
+real medida es **67.76 µW**, frente a **43.9 µW** esperados por
+extrapolación lineal — un desvío de **+54.3%**, muy por encima de
+cualquier bloque individual (ver gráfica abajo). Los delays medidos en ese
+mismo punto son completamente normales (mismo orden de magnitud que en los
+puntos vecinos del grid), lo que descarta un error de medición: es un
+efecto real que solo se manifiesta en el circuito completo.
+
+![Desvío de la potencia real vs. la estimación lineal, por bloque](docs/waveforms/vdd_temp_grid_interaction.png)
+
+**Interpretación física**: la explicación más probable es corriente de
+fuga subumbral (*subthreshold leakage*), que crece exponencialmente con la
+temperatura y se acentúa a VDD más alto (mayor campo eléctrico en el
+canal). En un bloque pequeño esa fuga es insignificante frente a la
+potencia dinámica de conmutación, así que el efecto se pierde en el ruido
+de pocos %. En la ALU completa —con aproximadamente 10× más transistores
+presentes en paralelo, ya que todos los bloques existen simultáneamente en
+el circuito aunque solo uno maneje la salida en cada operación— esa fuga
+total se multiplica, y el exceso exponencial se vuelve dominante
+precisamente en la esquina más caliente y con mayor VDD.
+
+**Conclusión práctica**: el peor caso de *delay* del proyecto ocurre con
+VDD **bajo** (904.2 ps en el multiplicador a 1.62V), mientras que el peor
+caso de *potencia* ocurre con VDD **alto** + temperatura alta (67.76 µW en
+la ALU) — son esquinas opuestas del grid. Un presupuesto de potencia que
+solo considerara el margen de VDD de forma aislada (sin cruzarlo con
+temperatura) subestimaría el consumo real en el peor caso combinado por
+más de un 50%.
+
+Comandos para reproducir:
+
+```bash
+cd sim
+../scripts/run_grid.sh    # corre las 54 combinaciones y genera grid_results.csv
 ```
 
 ## Camino crítico de la ALU
