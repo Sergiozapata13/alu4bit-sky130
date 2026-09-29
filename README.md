@@ -17,6 +17,7 @@ Ver el documento de investigación previa para contexto completo.
 - [x] Integración top-level (`alu_4bit_top.spice`, 8 operaciones seleccionables)
 - [x] Caracterización de delay y potencia — ver tabla abajo
 - [x] Camino crítico identificado y documentado (multiplicador, ruta A3→P5)
+- [x] Análisis de esquinas de proceso (tt/ff/ss) en los 6 bloques
 - [ ] (Opcional) Wallace tree + comparación contra array multiplier
 
 Ver `schematics/README.md` y `sim/README.md` para el detalle de cada
@@ -303,6 +304,73 @@ ningún caso.
 - **Ruta de modelos**: cada testbench tiene su propia línea `.lib "..." tt` apuntando a la
   instalación local del PDK (ciel) — ajustarla a la ruta real en tu máquina si difiere,
   buscándola con `find ~/.ciel -path "*sky130A/libs.tech/ngspice*"`.
+
+## Análisis de esquinas de proceso (corner analysis)
+
+Los modelos Sky130 vienen con distintas "esquinas" (corners) que modelan la
+variación de fabricación normal entre chips: `tt` (typical-typical, el que
+se usó en toda la caracterización de arriba), `ff` (fast-fast, transistores
+más rápidos de lo típico) y `ss` (slow-slow, más lentos de lo típico). Un
+diseño real tiene que funcionar correctamente en todo ese rango, no solo en
+`tt` — por eso se re-corrieron los 6 testbenches en `ff` y `ss` (VDD=1.8V,
+TEMP=27°C fijos, solo cambia la esquina de los transistores) usando
+`scripts/run_corner.sh`, que sustituye el nombre de esquina en la línea
+`.lib` de una copia temporal del testbench sin tocar el archivo original.
+
+### Peor-caso delay por esquina
+
+| Bloque | tt | ff | ss | ff vs tt | ss vs tt | ss/ff |
+|---|---|---|---|---|---|---|
+| Full adder | 186.5 ps | 139.0 ps | 275.7 ps | −25.5% | +47.8% | 1.98× |
+| Full subtractor | 201.0 ps | 148.7 ps | 297.0 ps | −26.0% | +47.8% | 2.00× |
+| Comparador 4-bit | 466.9 ps | 341.0 ps | 675.0 ps | −27.0% | +44.6% | 1.98× |
+| Lógica AND+OR+XOR | 145.4 ps | 112.8 ps | 196.2 ps | −22.4% | +34.9% | 1.74× |
+| Multiplicador array | 697.4 ps | 494.3 ps | **1070.4 ps** | −29.1% | +53.5% | 2.17× |
+| ALU top-level (S→R) | 561.9 ps | 383.6 ps | 851.2 ps | −31.7% | +51.5% | 2.22× |
+
+### Potencia dinámica promedio por esquina
+
+| Bloque | tt | ff | ss | ff vs tt | ss vs tt |
+|---|---|---|---|---|---|
+| Full adder | 1.365 µW | 1.542 µW | 1.332 µW | +13.0% | −2.4% |
+| Full subtractor | 2.383 µW | 2.594 µW | 2.373 µW | +8.9% | −0.4% |
+| Comparador 4-bit | 8.497 µW | 9.796 µW | 8.391 µW | +15.3% | −1.2% |
+| Lógica AND+OR+XOR | 3.539 µW | 4.139 µW | 3.488 µW | +17.0% | −1.4% |
+| Multiplicador array | 24.35 µW | 28.85 µW | 23.14 µW | +18.5% | −5.0% |
+| ALU top-level | 27.39 µW | 36.68 µW | 26.91 µW | +33.9% | −1.8% |
+
+Interpretación:
+
+- El patrón es el esperado para cualquier proceso CMOS: en `ff` los
+  transistores conmutan más rápido (menor delay) pero también más "fuerte"
+  (más corriente, más potencia dinámica); en `ss` es al revés — más lentos
+  pero con algo menos de potencia.
+- El ratio `ss`/`ff` en delay se mantiene entre 1.74× y 2.22× en todos los
+  bloques, consistente con la variación típica documentada para Sky130A
+  entre sus esquinas extremas.
+- El **multiplicador en la esquina `ss` pasa de 697 ps a 1070 ps** —el
+  único bloque que supera 1 ns de peor-caso delay en cualquier esquina—,
+  lo que confirma otra vez que es el elemento que más limita la frecuencia
+  máxima de la ALU: si se quisiera definir un reloj para este diseño, el
+  período mínimo tendría que basarse en el peor caso (`ss`), no en `tt`,
+  para garantizar que funcione en todos los chips fabricados.
+- La ALU top-level en `ss` (851.2 ps) queda por debajo del multiplicador
+  aislado en `ss` (1070.4 ps) por la misma razón que en `tt`: la transición
+  S→R medida no necesariamente ejercita la ruta interna más larga del
+  multiplicador (A3→P5 vía `pp03`, ver sección de camino crítico).
+- Estos resultados usan solo `tt`/`ff`/`ss` (las esquinas "simétricas"); no
+  se corrieron las esquinas mixtas `sf`/`fs` (un tipo de transistor rápido
+  y el otro lento), que son más relevantes para el skew NMOS-vs-PMOS en
+  diseños sensibles al balance de la red pull-up/pull-down.
+
+Comandos para reproducir (ver también `scripts/README.md`):
+
+```bash
+cd sim
+../scripts/run_corner.sh tb_full_adder.spice ff | grep -E "tpd_|avg_power"
+../scripts/run_corner.sh tb_full_adder.spice ss | grep -E "tpd_|avg_power"
+# ... repetir con cada tb_*.spice
+```
 
 ## Camino crítico de la ALU
 

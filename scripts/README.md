@@ -1,8 +1,10 @@
 # Scripts
 
 Utilidades de soporte para el proyecto: convertir las waveforms de
-simulación a un formato visible en GitHub, e instalar el PDK Sky130 desde
-tarballs ya descargados (evita el streaming de red inestable de `ciel`).
+simulación a un formato visible en GitHub, instalar el PDK Sky130 desde
+tarballs ya descargados (evita el streaming de red inestable de `ciel`), y
+correr un testbench contra una esquina de proceso distinta sin duplicar
+archivos.
 
 ## `convert_waveforms.sh`
 
@@ -71,3 +73,28 @@ ciel enable --pdk-family sky130 <hash_de_version>
 Esta es la ruta alternativa a la instalación estándar (`ciel enable --pdk
 sky130`, documentada en `../docs/README.md`); usarla solo si esa
 instalación estándar falla por problemas de red.
+
+## `run_corner.sh`
+
+Corre un testbench contra una esquina de proceso (`tt`/`ff`/`ss`/`sf`/`fs`)
+distinta a la que tiene escrita en su línea `.lib`, sin tener que mantener
+un archivo duplicado por cada esquina.
+
+**Por qué existe:** ngspice no soporta sustitución de texto arbitraria
+(tipo `{VARIABLE}`) dentro de la ruta o el nombre de sección de una
+directiva `.lib` — solo evalúa expresiones numéricas ahí. La alternativa
+más simple y auditable, sin agregar lógica condicional dentro de cada
+netlist, es generar una copia temporal del testbench con el nombre de
+esquina reemplazado por `sed`, correr ngspice sobre esa copia, y borrarla
+al terminar. El archivo original en el repo nunca se modifica.
+
+**Uso:**
+```bash
+cd sim
+../scripts/run_corner.sh tb_full_adder.spice ff
+../scripts/run_corner.sh tb_multiplier_4x4.spice ss
+```
+
+Ver la sección "Análisis de esquinas de proceso" en el `README.md`
+principal para los resultados obtenidos en `ff` y `ss` sobre los 6
+testbenches del proyecto.
