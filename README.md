@@ -116,7 +116,7 @@ Potencia = potencia dinámica promedio sobre toda la ventana simulada
 (`.meas ... AVG PAR('-i(VDD)*VDD_VAL')`). Comandos para reproducir estos
 números en `sim/README.md`.
 
-### Delay de propagación (full adder / full subtractor)
+### Delay de propagación (todos los bloques)
 
 | Transición medida | Delay |
 |---|---|
@@ -127,10 +127,58 @@ números en `sim/README.md`.
 | full adder: A→Cout (1→0) | 123.5 ps |
 | full subtractor: A→Diff (0→1) | 201.0 ps |
 | full subtractor: A→Diff (1→0) | 144.4 ps |
+| comparador: A3→LT (RISE) | 400.0 ps |
+| comparador: A3→EQ (FALL) | 120.7 ps |
+| comparador: A3→GT (RISE) | 403.5 ps |
+| comparador: A3→LT (FALL) | 393.4 ps |
+| comparador: B3→EQ (RISE) | 466.9 ps |
+| comparador: A3→LT (RISE, 2da transición) | 390.6 ps |
+| comparador: A3→GT (RISE, 2da transición) | 411.5 ps |
+| lógica: A1→AND1 (FALL) | 92.2 ps |
+| lógica: A1→OR1 (FALL) | 145.4 ps |
+| lógica: A0→AND0 (RISE) | 128.4 ps |
+| lógica: A0→OR0 (RISE) | 100.9 ps |
+| multiplicador: A0→P7 (RISE) | 546.9 ps |
+| multiplicador: A0→P0 (RISE) | 173.7 ps |
+| multiplicador: A1→P7 (FALL) | 564.4 ps |
+| multiplicador: A1→P1 (RISE) | 231.9 ps |
+| multiplicador: A3→P5 (RISE) | **697.4 ps (peor caso del proyecto)** |
+| multiplicador: A3→P1 (FALL) | 239.2 ps |
+| multiplicador: B0→P2 (RISE) | 378.7 ps |
+| multiplicador: B0→P0 (FALL) | 151.0 ps |
+| ALU top-level: S0→R3 (FALL) | 254.8 ps |
+| ALU top-level: S0→R1 (RISE) | 356.9 ps |
+| ALU top-level: S0→R4 (FALL) | 159.1 ps |
+| ALU top-level: S0→R2 (RISE) | 282.6 ps |
+| ALU top-level: S0→R2 (FALL) | 158.2 ps |
+| ALU top-level: S0→R3 (RISE) | 561.9 ps |
 
-Los demás testbenches (comparator, logic ops, multiplier, ALU top-level) no
-miden delay de propagación explícito — solo verificación funcional
-(muestreo de cada salida en el centro de su ventana) y potencia.
+Todas las transiciones se eligieron verificando primero en Python, bit a
+bit contra la tabla de verdad de cada bloque, que el borde entre dos casos
+de prueba consecutivos moviera un único bit de entrada de forma limpia
+(sin superponerse con otro cambio simultáneo) y que produjera una
+respuesta medible en la salida — evitando así medir un "delay" ambiguo
+donde varias señales cambian a la vez. Comandos para reproducir en
+`sim/README.md`.
+
+Resumen por bloque (peor caso observado):
+
+| Bloque | Peor-caso delay |
+|---|---|
+| Full adder | 186.5 ps |
+| Full subtractor | 201.0 ps |
+| Comparador de magnitud | 466.9 ps |
+| Lógica AND+OR+XOR | 145.4 ps |
+| Multiplicador array | **697.4 ps** |
+| ALU top-level (S→R) | 561.9 ps |
+
+El multiplicador array tiene el peor delay de todos los bloques — coherente
+con que su carry-chain interna (9 half/full adders encadenados) es la ruta
+combinacional más larga del proyecto, y es el principal candidato a
+optimizar (ver "Posible siguiente paso: Wallace tree" más abajo). El delay
+S→R de la ALU top-level (561.9 ps) incluye el mux de selección de 8
+entradas más la lógica del bloque activo en cada caso — es la medida más
+cercana a un "delay end-to-end" de la ALU completa.
 
 ### Potencia dinámica promedio, energía y corriente, por bloque
 
@@ -148,7 +196,7 @@ total / 12 operaciones de 16ns cada una) — una cifra más útil que la
 potencia sola para comparar contra otras arquitecturas, porque no depende
 de cuánto dure la simulación.
 
-### Producto delay-potencia (PDP), full adder y full subtractor
+### Producto delay-potencia (PDP), todos los bloques
 
 El PDP combina ambas métricas en una sola cifra: cuánta energía se gasta en
 cada conmutación de la salida (menor es mejor — un diseño puede ser rápido
@@ -159,12 +207,25 @@ compensación).
 |---|---|---|---|
 | Full adder | 186.5 ps (A→Sum, 1→0) | 1.365 µW | 254.5 aJ |
 | Full subtractor | 201.0 ps (A→Diff, 0→1) | 2.383 µW | 479.1 aJ |
+| Comparador de magnitud | 466.9 ps (B3→EQ, RISE) | 8.497 µW | 3967.2 aJ |
+| Lógica AND+OR+XOR | 145.4 ps (A1→OR1, FALL) | 3.539 µW | 514.6 aJ |
+| Multiplicador array | 697.4 ps (A3→P5, RISE) | 24.35 µW | **16981.7 aJ** |
+| ALU top-level (S→R) | 561.9 ps (S0→R3, RISE) | 27.39 µW | 15390.4 aJ |
 
 El full subtractor tiene ~1.9× el PDP del full adder — coherente con que
 reutiliza el mismo full adder pero le agrega dos inversores en la entrada
 (para B' y Bin'), lo que añade tanto capacitancia (más potencia) como un
 paso lógico extra en la ruta crítica (más delay) sin cambiar la topología
 central.
+
+El multiplicador array tiene, por un margen amplio, el peor PDP del
+proyecto (~33× el del full adder) — combina el mayor delay (carry-chain de
+9 half/full adders) con la mayor potencia (más transistores conmutando por
+ciclo), así que es donde más impacto tendría una optimización (ver Wallace
+tree abajo). El PDP de la ALU top-level es comparable al del multiplicador
+porque, aunque su potencia individual es apenas mayor, su delay de S→R es
+menor que el peor caso puramente interno del multiplicador (el mux de
+salida no añade tanta ruta combinacional adicional).
 
 Notas de interpretación:
 - La potencia de la ALU top-level (27.39 µW) es menor que la suma directa de

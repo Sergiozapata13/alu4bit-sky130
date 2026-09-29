@@ -232,6 +232,36 @@ Ceq eq vss {CLOAD}
 
 .meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=192n
 
+* --- Mediciones de delay (cruce 50% VDD), selector de operacion (S)
+*     hacia el resultado (R) ---
+* El mux final de 8 entradas (mux8_sk130) que selecciona cual bloque
+* alimenta a R[7:0] es la ultima etapa del datapath, asi que el delay
+* S->R es el que mas se acerca a un "delay de la ALU completa" medible
+* end-to-end (a diferencia de tpd_*_r*/tpd_*_p* de los testbenches de
+* bloque individual, que miden A/B->salida de UN bloque). Se eligen
+* bordes entre slots donde cambia un UNICO bit de S (aislando el efecto
+* del mux de seleccion del efecto de que tambien cambien A/B a la vez)
+* y donde ademas hay una respuesta medible en R (verificado en Python
+* contra el resultado esperado de cada slot; los bordes t=64n y t=80n
+* se omiten porque no cambia nada, ambos son CMP con el mismo resultado
+* de bandera en R).
+
+* t=16n: ADD(S=000)->SUB(S=001), s0 0->1 (RISE). R3 1->0 (FALL), R1 0->1 (RISE)
+.meas tran tpd_s0_r3_f TRIG v(s0) VAL={VDD_VAL/2} RISE=1 TD=15n TARG v(r3) VAL={VDD_VAL/2} FALL=1 TD=15n
+.meas tran tpd_s0_r1_r TRIG v(s0) VAL={VDD_VAL/2} RISE=1 TD=15n TARG v(r1) VAL={VDD_VAL/2} RISE=1 TD=15n
+
+* t=48n: MUL(S=010)->CMP_GT(S=011), s0 0->1 (RISE). R4 1->0, R1 1->0 (FALL)
+.meas tran tpd_s0_r4_f TRIG v(s0) VAL={VDD_VAL/2} RISE=1 TD=47n TARG v(r4) VAL={VDD_VAL/2} FALL=1 TD=47n
+
+* t=112n: AND(S=100)->OR(S=101), s0 0->1 (RISE). R2 0->1, R1 0->1 (RISE)
+.meas tran tpd_s0_r2_r TRIG v(s0) VAL={VDD_VAL/2} RISE=1 TD=111n TARG v(r2) VAL={VDD_VAL/2} RISE=1 TD=111n
+
+* t=144n: XOR(S=110)->RESERVED(S=111), s0 0->1 (RISE). R2 1->0, R1 1->0 (FALL)
+.meas tran tpd_s0_r2_f TRIG v(s0) VAL={VDD_VAL/2} RISE=1 TD=143n TARG v(r2) VAL={VDD_VAL/2} FALL=1 TD=143n
+
+* t=176n: ADD_OVF(S=000)->SUB_UDF(S=001), s0 0->1 (RISE). R3 0->1, R2 0->1 (RISE)
+.meas tran tpd_s0_r3_r TRIG v(s0) VAL={VDD_VAL/2} RISE=1 TD=175n TARG v(r3) VAL={VDD_VAL/2} RISE=1 TD=175n
+
 .control
 run
 plot v(r7) v(r6) v(r5) v(r4) v(r3) v(r2) v(r1) v(r0)
@@ -246,6 +276,7 @@ plot v(cout) v(bout) "v(gt)" "v(lt)" "v(eq)"
 hardcopy ../docs/waveforms/alu_4bit_flags.ps v(cout) v(bout) "v(gt)" "v(lt)" "v(eq)"
 plot v(s2) v(s1) v(s0)
 hardcopy ../docs/waveforms/alu_4bit_select.ps v(s2) v(s1) v(s0)
+print tpd_s0_r3_f tpd_s0_r1_r tpd_s0_r4_f tpd_s0_r2_r tpd_s0_r2_f tpd_s0_r3_r avg_power
 .endc
 
 .end

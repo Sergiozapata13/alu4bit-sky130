@@ -121,6 +121,34 @@ Cp7 p7 vss {CLOAD}
 
 .meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=160n
 
+* --- Mediciones de delay (cruce 50% VDD) ---
+* Verificado en Python bit a bit contra el producto esperado en cada
+* borde entre combos. Se usa como trigger un bit de A o B que cambia
+* limpiamente en ese borde y que efectivamente participa del cambio de
+* salida (no todos los bordes tienen una respuesta medible: en t=60n,
+* combo2(1x15=15)->combo3(15x1=15), el producto no cambia porque es
+* conmutativo, asi que ese borde se omite).
+
+* t=20n: combo0(0x0=0)->combo1(15x15=225). a0 0->1 (RISE).
+*         P7 0->1, P6 0->1, P5 0->1, P0 0->1 (todos RISE)
+.meas tran tpd_a0_p7_r TRIG v(a0) VAL={VDD_VAL/2} RISE=1 TD=19n TARG v(p7) VAL={VDD_VAL/2} RISE=1 TD=19n
+.meas tran tpd_a0_p0_r TRIG v(a0) VAL={VDD_VAL/2} RISE=1 TD=19n TARG v(p0) VAL={VDD_VAL/2} RISE=1 TD=19n
+
+* t=40n: combo1(15x15=225)->combo2(1x15=15). a1 1->0 (FALL).
+*         P7 1->0, P6 1->0, P5 1->0 (FALL); P3,P2,P1 0->1 (RISE)
+.meas tran tpd_a1_p7_f TRIG v(a1) VAL={VDD_VAL/2} FALL=1 TD=39n TARG v(p7) VAL={VDD_VAL/2} FALL=1 TD=39n
+.meas tran tpd_a1_p1_r TRIG v(a1) VAL={VDD_VAL/2} FALL=1 TD=39n TARG v(p1) VAL={VDD_VAL/2} RISE=1 TD=39n
+
+* t=80n: combo3(15x1=15)->combo4(7x7=49). a3 1->0 (FALL).
+*         P5 0->1, P4 0->1 (RISE); P3,P2,P1 1->0 (FALL)
+.meas tran tpd_a3_p5_r TRIG v(a3) VAL={VDD_VAL/2} FALL=1 TD=79n TARG v(p5) VAL={VDD_VAL/2} RISE=1 TD=79n
+.meas tran tpd_a3_p1_f TRIG v(a3) VAL={VDD_VAL/2} FALL=1 TD=79n TARG v(p1) VAL={VDD_VAL/2} FALL=1 TD=79n
+
+* t=100n: combo4(7x7=49)->combo5(9x6=54). b0 1->0 (FALL).
+*         P2 0->1, P1 0->1 (RISE); P0 1->0 (FALL)
+.meas tran tpd_b0_p2_r TRIG v(b0) VAL={VDD_VAL/2} FALL=1 TD=99n TARG v(p2) VAL={VDD_VAL/2} RISE=1 TD=99n
+.meas tran tpd_b0_p0_f TRIG v(b0) VAL={VDD_VAL/2} FALL=1 TD=99n TARG v(p0) VAL={VDD_VAL/2} FALL=1 TD=99n
+
 .control
 run
 * NOTA: ngspice-42 da "PPerror: syntax error in line segment" si se le
@@ -136,6 +164,7 @@ plot v(p7) v(p6) v(p5) v(p4)
 hardcopy ../docs/waveforms/multiplier_4x4_p_high.ps v(p7) v(p6) v(p5) v(p4)
 plot v(p3) v(p2) v(p1) v(p0)
 hardcopy ../docs/waveforms/multiplier_4x4_p_low.ps v(p3) v(p2) v(p1) v(p0)
+print tpd_a0_p7_r tpd_a0_p0_r tpd_a1_p7_f tpd_a1_p1_r tpd_a3_p5_r tpd_a3_p1_f tpd_b0_p2_r tpd_b0_p0_f avg_power
 .endc
 
 .end

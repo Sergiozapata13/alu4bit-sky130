@@ -86,6 +86,34 @@ Ceq eq vss {CLOAD}
 
 .meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=144n
 
+* --- Mediciones de delay (cruce 50% VDD) ---
+* Se eligen los bordes entre combos donde SI hay una transicion limpia
+* en la entrada disparadora y una respuesta medible en GT/LT/EQ (varios
+* bordes no mueven ninguna de las tres salidas, o mueven varios bits de
+* A/B a la vez sin que quede claro cual "causa" el cambio -- se evitan
+* esos y se usa siempre un bit de entrada que cambia solo en ese borde
+* y de forma consistente con el cambio de salida esperado, verificado
+* en Python contra la tabla de verdad).
+
+* t=32n: combo1->2, A 1111->0000 (a3 FALL), B se mantiene en 1111.
+*         LT 0->1 (RISE), EQ 1->0 (FALL)
+.meas tran tpd_a3_lt_r TRIG v(a3) VAL={VDD_VAL/2} FALL=1 TD=31n TARG v(lt) VAL={VDD_VAL/2} RISE=1 TD=31n
+.meas tran tpd_a3_eq_f TRIG v(a3) VAL={VDD_VAL/2} FALL=1 TD=31n TARG v(eq) VAL={VDD_VAL/2} FALL=1 TD=31n
+
+* t=48n: combo2->3, A 0000->1111 (a3 RISE). GT 0->1 (RISE), LT 1->0 (FALL)
+.meas tran tpd_a3_gt_r TRIG v(a3) VAL={VDD_VAL/2} RISE=1 TD=47n TARG v(gt) VAL={VDD_VAL/2} RISE=1 TD=47n
+.meas tran tpd_a3_lt_f TRIG v(a3) VAL={VDD_VAL/2} RISE=1 TD=47n TARG v(lt) VAL={VDD_VAL/2} FALL=1 TD=47n
+
+* t=64n: combo3->4, B 0000->1000 (b3 RISE), a3 no cambia (se mantiene 1).
+*         EQ 0->1 (RISE)
+.meas tran tpd_b3_eq_r TRIG v(b3) VAL={VDD_VAL/2} RISE=1 TD=63n TARG v(eq) VAL={VDD_VAL/2} RISE=1 TD=63n
+
+* t=80n: combo4->5, A 1000->0111 (a3 FALL). LT 0->1 (RISE)
+.meas tran tpd_a3_lt_r2 TRIG v(a3) VAL={VDD_VAL/2} FALL=1 TD=79n TARG v(lt) VAL={VDD_VAL/2} RISE=1 TD=79n
+
+* t=96n: combo5->6, A 0111->1000 (a3 RISE). GT 0->1 (RISE)
+.meas tran tpd_a3_gt_r2 TRIG v(a3) VAL={VDD_VAL/2} RISE=1 TD=95n TARG v(gt) VAL={VDD_VAL/2} RISE=1 TD=95n
+
 .control
 run
 * NOTA: ngspice-42 da "PPerror: syntax error in line segment" si se le
@@ -104,6 +132,7 @@ hardcopy ../docs/waveforms/comparator_4bit_inputs.ps v(a3) v(a2) v(a1) v(a0) v(b
 * dobles, que fuerza al parser a tratarlo como texto literal.
 plot "v(gt)" "v(lt)" "v(eq)"
 hardcopy ../docs/waveforms/comparator_4bit_outputs.ps "v(gt)" "v(lt)" "v(eq)"
+print tpd_a3_lt_r tpd_a3_eq_f tpd_a3_gt_r tpd_a3_lt_f tpd_b3_eq_r tpd_a3_lt_r2 tpd_a3_gt_r2 avg_power
 .endc
 
 .end

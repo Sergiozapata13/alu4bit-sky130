@@ -74,6 +74,18 @@ Cy0x y0x vss {CLOAD}
 
 .meas tran avg_power AVG PAR('-i(VDD)*VDD_VAL') FROM=0 TO=32n
 
+* --- Mediciones de delay (cruce 50% VDD) ---
+* Unico borde disponible: t=16n, combo0(A=1010,B=0110)->combo1(A=0101,
+* B=1001). Verificado bit a bit en Python contra la tabla de verdad:
+*   bit1: A 1->0, B 1->0, AND1 1->0 (FALL), OR1 1->0 (FALL)
+*   bit0: A 0->1, B 0->1, AND0 0->1 (RISE), OR0 0->1 (RISE)
+* (bit3 y bit2 cambian en A y B pero AND/OR/XOR de esos bits no
+*  cambian de valor en este borde; XOR no cambia en ningun bit aqui)
+.meas tran tpd_a1_and1_f TRIG v(a1) VAL={VDD_VAL/2} FALL=1 TD=15n TARG v(y1a) VAL={VDD_VAL/2} FALL=1 TD=15n
+.meas tran tpd_a1_or1_f  TRIG v(a1) VAL={VDD_VAL/2} FALL=1 TD=15n TARG v(y1o) VAL={VDD_VAL/2} FALL=1 TD=15n
+.meas tran tpd_a0_and0_r TRIG v(a0) VAL={VDD_VAL/2} RISE=1 TD=15n TARG v(y0a) VAL={VDD_VAL/2} RISE=1 TD=15n
+.meas tran tpd_a0_or0_r  TRIG v(a0) VAL={VDD_VAL/2} RISE=1 TD=15n TARG v(y0o) VAL={VDD_VAL/2} RISE=1 TD=15n
+
 .control
 run
 * NOTA: ngspice-42 da "PPerror: syntax error in line segment" si se le
@@ -90,6 +102,7 @@ plot v(y3o) v(y2o) v(y1o) v(y0o)
 hardcopy ../docs/waveforms/logic_ops_or.ps v(y3o) v(y2o) v(y1o) v(y0o)
 plot v(y3x) v(y2x) v(y1x) v(y0x)
 hardcopy ../docs/waveforms/logic_ops_xor.ps v(y3x) v(y2x) v(y1x) v(y0x)
+print tpd_a1_and1_f tpd_a1_or1_f tpd_a0_and0_r tpd_a0_or0_r avg_power
 .endc
 
 .end
